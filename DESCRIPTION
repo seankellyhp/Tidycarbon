@@ -1,0 +1,27 @@
+Package: tidycarbon
+Type: Package
+Title: Tidy R Wrapper for Python's CodeCarbon Emissions Tracker
+Version: 0.1.0
+Authors@R: c(
+    person(
+      given = "Sean",
+      family = "Palicki",
+      email = "sean.palicki@pm.me",
+      role = c("aut", "cre")
+    ),
+    person(
+      given = "Isaac",
+      family = "Bravo",
+      email = "isaac.bravo@tum.de",
+      role = c("aut")
+    ))
+Description: With three lines of code, track and compare the energy, CPU and GPU use to estimate sustainablity values including carbon emissions and water use of R functions and scripts and carbon emissions of you 
+License: GPL (>= 3)
+Encoding: UTF-8
+LazyData: true
+Imports:
+    reticulate (>= 1.44.0),
+    tibble,
+    purrr,
+    uuid
+RoxygenNote: 7.3.3
