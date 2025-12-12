@@ -12,8 +12,8 @@
 The motivation behind `tidycarbon` is to help R users, including computational researchers and practitioners: 
 1. Reduce the environmental impact of big data analyses and AI systems that disproprtionately affect disadvantaged people and communities, particularly in the Global South.  
 2. Reduce reliance of academic researchers on third-party analytics services such as ChatGPT or Google Cloud in favor of local, private, and secure hardware and tools such as Ollama. 
-3. Align with the UN Sustainable Development Goals, namely SDGs 12 and 13. 
-4. Align with the EU AI Act (private-sector) responsibility of "reporting and documentation processes to improve AI systems resource performance" (Article 40). 
+3. Align with the UN Sustainable Development Goals, namely SDG 12 (Responsible Consumption and Production) and SDG 13 (Climate Action). 
+4. Align with the EU AI Act (private-sector) responsibility of "reporting and documentation processes to improve AI systems resource performance" (Article 40). All logs are saved automatically, and accessible via our dashboard. 
 
 This package is very much in-development and will change often. 
 
@@ -26,12 +26,12 @@ Install the development version from GitHub:
 remotes::install_github("seankellyhp/Tidycarbon")
 ```
 
-`tidycarbon` relies on [reticulate](https://rstudio.github.io/reticulate/) to interface with CodeCarbon. Install the required Python package. Installation via reticulate relies on the Python uv package, and should happen automatically without any additional manual effort from you. If you prefer a manual installation (using conda or venv), refer to the reticulate docs. 
+`tidycarbon` relies on [reticulate](https://rstudio.github.io/reticulate/) to interface with CodeCarbon. Installation via reticulate relies on the Python uv package, and should happen automatically without any additional manual effort from you (recommended). If you prefer a manual installation (using conda or venv), refer to the reticulate docs. 
 
 ## Quickstart
 
 ### Global Tracking (wrap any R code)
-Think of this like time benchmarking packages such as tictok or microbenchmark. You start the tracker and you stop the tracker. Everything in between remains the same. `tidycarbon` will measure your machine on the backend. 
+Think of this like time benchmarking packages such as tictok or microbenchmark. You start the tracker and you stop the tracker. Everything in between remains the same. `tidycarbon` will measure your machine on the backend.
 
 ```r
 library(tidycarbon)
@@ -86,12 +86,13 @@ Returns a tidy tibble with task id, function results, metadata, emissions, energ
 - `tracker_start()` / `tracker_stop()`: Global run tracking.
 - `carbon_track(fun, ..., tracker)`: Track single function.
 - `carbon_track_all(tasks, tracker)`: Batch track list of tasks.
+- `carbon_init()`: Starts a Shiny dashboard at localhost (in development)
 
 See `?tidycarbon` for full docs.
 
 ## Examples
 
-See `vignettes` for more examples.
+See `vignettes` for more examples (in development).
 
 ## Features & Notes
 
