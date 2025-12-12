@@ -86,7 +86,7 @@ Returns a tidy tibble with task id, function results, metadata, emissions, energ
 - `tracker_start()` / `tracker_stop()`: Global run tracking.
 - `carbon_track(fun, ..., tracker)`: Track single function.
 - `carbon_track_all(tasks, tracker)`: Batch track list of tasks.
-- `carbon_init()`: Starts a Shiny dashboard at localhost (in development)
+- `carbon_view()`: Starts a Shiny dashboard at localhost (in development)
 
 See `?tidycarbon` for full docs.
 
