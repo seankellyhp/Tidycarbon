@@ -60,17 +60,26 @@ Emissions data is automatically logged to `emissions.csv` in the root project fo
 This is a little different from a time benchmarking package. As one of the main use-cases of an emissions tracker is to measure the carbon footprint of heavy computational processes such as machine learning or language models, the carbon_track functions track the emissions for a specific function or list of functions.    
 
 ```r
+library(tidycarbon)
+
+# First, initiate the carbon tracking engine. 
+tracker <- carbon_init(project_name = "Fridays for Future")
+
+# Next, define your function(s)
 square <- function(x) x^2
 
-# Single function
+# Then, track a single function
 carbon_track(square, x = 42, tracker = tracker)
 
-# Multiple tasks
+# Or, track multiple functions
 tasks <- list(
   list(fun = square, args = list(x = 2)),
   list(fun = square, args = list(x = 3))
 )
 carbon_track_all(tasks, tracker)
+
+# Finally, stop the tracker. 
+tracker_stop(tracker)
 ```
 
 Returns a tidy tibble with task id, function results, metadata, emissions, energy, hardware, and geo data:
@@ -88,8 +97,6 @@ Returns a tidy tibble with task id, function results, metadata, emissions, energ
 - `carbon_track(fun, ..., tracker)`: Track single function.
 - `carbon_track_all(tasks, tracker)`: Batch track list of tasks.
 - `carbon_view()`: Starts a Shiny dashboard at localhost (in development)
-
-See `?tidycarbon` for full docs.
 
 ## Examples
 
