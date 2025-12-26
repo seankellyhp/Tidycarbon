@@ -4,6 +4,7 @@ library(shiny)
 library(bslib)
 library(dplyr)
 library(reticulate) # Required for the custom function
+library(shinycssloaders)
 
 # --- Data Gathering Functions (Outside of Server/UI for efficiency) ---
 
@@ -122,43 +123,131 @@ get_static_machine_info <- function(project_name = "Static_Machine_Info") {
 
 ui <- page_sidebar(
   theme = bs_theme(bootswatch = "cerulean"),
-  title = "Enhanced System Information Dashboard (bslib + codecarbon)",
+  title = h2(style = "color: #F2F2F2;", "Tidycarbon - Dashboard System Consumption (Energy)⚡"),
 
   sidebar = sidebar(
-    title = "About This App",
-    p("This app combines base R system info with detailed machine configuration gathered using the Python **codecarbon** library via **reticulate**."),
+    title = h4("About This App"),
+    p("This app displays comprehensive system information, including R and OS details, and enriches it with machine configuration and carbon emissions metrics collected using the Python codecarbon library (integrated via reticulate).",
+      style = "font-size: 20px;"),
     hr(),
-    h5("Last updated:"),
-    textOutput("current_time")
+    h4("Last updated:"),
+    div(
+      style = "
+        background-color: #353A40;
+        color: #F2F2F2;
+        padding: 10px 15px;
+        border-radius: 8px;
+        border: 3px solid #444;
+        text-align: center;
+        box-shadow: inset 0px 0px 10px #000;
+        width: fit-content;
+        margin: 10px 0;
+      ",
+      textOutput("current_time")
+    )
   ),
 
-  # Main Content Area: Use two columns for the static R/OS info and the CodeCarbon info
-  layout_columns(
-    col_widths = c(6, 6), # Set the column widths to 50/50
+  # Main Content Area with Tabs
+  navset_card_underline(
+    title = h4(style = "color: #47A4EA;", "Analysis Navigation"),
 
-    # Column 1: Core System Information (from base R)
-    card(
-      card_header(h4(icon("desktop"), "Core R & OS Info")),
-      tableOutput("sys_info_table")
+    # --- TAB 1: Current System Info ---
+    nav_panel(
+      title = "System Metrics",
+      layout_columns(
+        col_widths = c(6, 6),
+        card(
+          bslib::card_header(h4(shiny::icon("desktop"), "Core R & OS Info")),
+          shinycssloaders::withSpinner(
+            shiny::tableOutput("sys_info_table"),
+            type = 6,
+            color = "firebrick",
+            proxy.height = "180px"
+          )
+        ),
+        card(
+          card_header(h4(icon("microchip"), "CodeCarbon Machine Configuration")),
+          shinycssloaders::withSpinner(
+            shiny::tableOutput("codecarbon_info_table"),
+            type = 6,
+            color = "firebrick",
+            proxy.height = "180px"
+          )
+        )
+      ),
+      layout_columns(
+        col_widths = 12,
+        card(
+          full_screen = TRUE,
+          card_header(h4(icon("code"), "Detailed R Session Info")),
+          pre(textOutput("session_info_text"))
+        )
+      )
     ),
 
-    # Column 2: CodeCarbon Machine Configuration (from your custom function)
-    card(
-      card_header(h4(icon("microchip"), "CodeCarbon Machine Configuration")),
-      tableOutput("codecarbon_info_table")
-    )
-  ),
+    # --- TAB 2: Carbon Analysis ---
+    nav_panel(
+      title = "Carbon Analysis",
+      layout_columns(
+        col_widths = c(4, 8),
 
-  # New Row for detailed session info (full width)
-  layout_columns(
-    col_widths = 12, # Full width card
+        # Summary Card
+        card(
+          card_header(h4(icon("leaf"), "Total Impact")),
+          value_box(
+            title = "Total CO2 Emissions",
+            value = textOutput("total_emissions"),
+            showcase = icon("cloud"),
+            theme = "danger"
+          ),
+          value_box(
+            title = "Energy Consumed",
+            value = textOutput("total_energy"),
+            showcase = icon("bolt"),
+            theme = "warning"
+          )
+        ),
 
-    # Card 3: Full Session Information (sessionInfo())
-    card(
-      full_screen = TRUE,
-      card_header(h4(icon("code"), "Detailed R Session Info")),
-      pre(textOutput("session_info_text"))
+        # Visualization Card
+        card(
+          card_header(h4(icon("chart-bar"), "Energy Consumption Breakdown")),
+          plotly::plotlyOutput("energy_plot")
+        )
+      ),
+
+      # Data Table Row
+      card(
+        card_header(h4(icon("table"), "Raw Emissions Logs")),
+        DT::dataTableOutput("emissions_table")
+      )
+    ),
+
+
+    # --- TAB 3: Carbon API Calculation ---
+
+    nav_panel(
+      title = "Carbon Equivalents",
+
+      tags$div(
+        style = "margin-top:-20px;",
+
+        h4("Your computed emissions: ", style = "margin-top:20px;"),
+
+        tags$span(
+          textOutput("equivalents", inline = TRUE),
+          style = "font-size: 20px; font-weight: bold;"
+        ),
+
+        tags$iframe(
+          src = "https://www.arbor.eco/tool/carbon-equivalent-calculator?id=811484046",
+          width = "100%",
+          height = "864px",
+          style = "border:none; margin-top:16px;",
+          title = "Arbor Carbon Equivalent Calculator"
+        )
+      )
     )
+
   )
 )
 
@@ -167,14 +256,18 @@ ui <- page_sidebar(
 
 server <- function(input, output, session) {
 
-  # Reactive value for the current time in the sidebar
+  # -----------------------------
+  # Clock in sidebar (ONLY ONCE)
+  # -----------------------------
   output$current_time <- renderText({
     invalidateLater(1000, session)
     format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z")
   })
 
-  # --- CodeCarbon Machine Info ---
-  # Only run once when the session starts
+
+  # -----------------------------
+  # Tab 1: System / Machine info
+  # -----------------------------
   machine_info_data <- get_static_machine_info()
 
   output$codecarbon_info_table <- renderTable({
@@ -183,22 +276,166 @@ server <- function(input, output, session) {
   striped = TRUE,
   hover = TRUE,
   width = "100%",
-  align = 'l')
+  align = "l")
 
-  # --- Core R & OS Info ---
   output$sys_info_table <- renderTable({
     get_system_info()
   },
   striped = TRUE,
   hover = TRUE,
   width = "100%",
-  align = 'l')
+  align = "l")
 
-  # --- Detailed R Session Info ---
   output$session_info_text <- renderText({
     paste(get_session_info_text(), collapse = "\n")
   })
+
+
+  # -----------------------------
+  # Tab 2: Carbon Analysis
+  # -----------------------------
+  get_project_root <- function() {
+    # 1) RStudio Project root (best for local dev)
+    if (requireNamespace("rstudioapi", quietly = TRUE) &&
+        rstudioapi::isAvailable()) {
+      p <- tryCatch(rstudioapi::getActiveProject(), error = function(e) NULL)
+      if (!is.null(p) && nzchar(p)) return(normalizePath(p, winslash = "/"))
+    }
+
+    # 2) Git root (great for deployments / containers)
+    if (requireNamespace("rprojroot", quietly = TRUE)) {
+      p <- tryCatch(
+        rprojroot::find_root(rprojroot::is_git_root),
+        error = function(e) NULL
+      )
+      if (!is.null(p) && nzchar(p)) return(normalizePath(p, winslash = "/"))
+    }
+
+    # 3) Fallback
+    normalizePath(getwd(), winslash = "/")
+  }
+
+  emissions_data <- reactive({
+    # Anchor the search to the app directory (NOT getwd() alone)
+    app_dir <- get_project_root()
+
+    csv_files <- list.files(
+      path = app_dir,
+      pattern = "^emissions\\.csv$",
+      recursive = TRUE,
+      full.names = TRUE
+    )
+
+    validate(
+      need(length(csv_files) > 0,
+           "emissions.csv not found anywhere in the project folder.")
+    )
+
+    # If multiple, take the most recently modified
+    file_path <- csv_files[which.max(file.info(csv_files)$mtime)]
+
+    df <- read.csv(file_path, stringsAsFactors = FALSE)
+
+    # Robust timestamp parsing (won't break if format varies slightly)
+    if ("timestamp" %in% names(df)) {
+      df$timestamp <- suppressWarnings(as.POSIXct(df$timestamp, tz = "UTC"))
+      # If it came in as NA due to parsing, try the expected CodeCarbon format
+      if (all(is.na(df$timestamp)) && nrow(df) > 0) {
+        df$timestamp <- suppressWarnings(as.POSIXct(
+          df$timestamp,
+          format = "%Y-%m-%dT%H:%M:%S",
+          tz = "UTC"
+        ))
+      }
+    }
+
+    df
+  })
+
+
+  # Data table
+  output$emissions_table <- DT::renderDataTable({
+    df <- emissions_data()
+
+    # If you have multiple rows, pick the first row (or summarise instead)
+    df1 <- df[1, , drop = FALSE]
+
+    df_t <- as.data.frame(t(df1)) |>
+      tibble::rownames_to_column("Metric") |>
+      select(1, Values = 2)
+
+
+    DT::datatable(
+      df_t,
+      rownames = FALSE,
+      options = list(scrollX = TRUE, pageLength = 40),
+      escape = FALSE
+    ) |>
+      DT::formatStyle(
+        columns = c("Metric", "Values"),
+        fontWeight = "bold"
+      )
+  })
+
+
+  # Energy breakdown plot
+  output$energy_plot <- plotly::renderPlotly({
+    df <- emissions_data()
+
+    # Ensure required columns exist
+    validate(
+      need(all(c("cpu_energy", "gpu_energy", "ram_energy") %in% names(df)),
+           "Missing one or more columns: cpu_energy, gpu_energy, ram_energy.")
+    )
+
+    plot_df <- df |>
+      dplyr::summarise(
+        CPU = sum(cpu_energy, na.rm = TRUE),
+        GPU = sum(gpu_energy, na.rm = TRUE),
+        RAM = sum(ram_energy, na.rm = TRUE)
+      ) |>
+      tidyr::pivot_longer(
+        cols = dplyr::everything(),
+        names_to = "Source",
+        values_to = "Energy"
+      )
+
+    plotly::plot_ly(
+      plot_df,
+      x = ~Source,
+      y = ~Energy,
+      type = "bar",
+      color = ~Source
+    ) |>
+      plotly::layout(
+        yaxis = list(title = "Energy (kWh)"),
+        xaxis = list(title = "")
+      )
+  })
+
+
+  # Value boxes: total emissions
+  output$total_emissions <- renderText({
+    df <- emissions_data()
+    validate(need("emissions" %in% names(df), "Column 'emissions' not found in emissions.csv."))
+    paste0(round(sum(df$emissions, na.rm = TRUE), 50), " kg eq. CO2")
+  })
+
+  # Value boxes: total energy consumed
+  output$total_energy <- renderText({
+    df <- emissions_data()
+    validate(need("energy_consumed" %in% names(df), "Column 'energy_consumed' not found in emissions.csv."))
+    paste0(round(sum(df$energy_consumed, na.rm = TRUE), 6), " kWh")
+  })
+
+  output$equivalents <- renderText({
+    df <- emissions_data()
+    validate(need("emissions" %in% names(df), "Column 'emissions' not found in emissions.csv."))
+    paste0(round(sum(df$emissions, na.rm = TRUE), 50), " kg eq. CO2")
+  })
+
 }
+
 
 # Run the application
 shinyApp(ui = ui, server = server, options = list(launch.browser = TRUE))
