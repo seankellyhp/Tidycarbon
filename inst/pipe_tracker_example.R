@@ -8,6 +8,7 @@ library(quanteda.textmodels)
 library(stringi)
 library(tidycarbon)
 
+# pkgload::load_all(".")
 
 data(data_corpus_irishbudget2010, package = "quanteda.textmodels")
 

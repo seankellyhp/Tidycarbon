@@ -23,5 +23,7 @@ Imports:
     reticulate (>= 1.44.0),
     tibble,
     purrr,
-    uuid
+    uuid,
+    ggplot2,
+    rlang
 RoxygenNote: 7.3.3

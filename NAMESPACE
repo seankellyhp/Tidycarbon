@@ -1,1 +1,4 @@
 exportPattern("^[[:alpha:]]+")
+S3method(autoplot, carbonbench)
+importFrom(ggplot2, autoplot)
+importFrom(rlang, .data)
