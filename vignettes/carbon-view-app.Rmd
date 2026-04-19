@@ -1,0 +1,118 @@
+---
+title: "Using the `carbon_view()` Shiny App"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Using the carbon_view() Shiny App}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Overview
+
+`carbon_view()` launches the built-in Shiny dashboard included with `tidycarbon`.
+The app helps you inspect:
+
+- System and R session details
+- Machine configuration information detected through CodeCarbon
+- Carbon and energy metrics from your `emissions.csv` file
+- Carbon-equivalent context in a calculator panel
+
+The dashboard is especially useful after you have tracked one or more runs and want a quick visual readout of impact.
+
+## Before You Launch the App
+
+You will get the best results if the following are ready:
+
+1. `tidycarbon` is installed.
+1. Python and the `codecarbon` module are available through `reticulate`.
+1. At least one `emissions.csv` file exists in your project (the app looks for it recursively).
+
+If no `emissions.csv` is found, the app will show:
+`"emissions.csv not found anywhere in the project folder."`
+
+## Create `emissions.csv` (if needed)
+
+If you have not produced tracking output yet, run a quick tracked session:
+
+```{r, eval = FALSE}
+library(tidycarbon)
+
+tracker <- carbon_init(project_name = "carbon_view_demo")
+tracker_start(tracker)
+
+# Example workload
+Sys.sleep(1)
+x <- sum(1:1000000)
+
+tracker_stop(tracker)
+```
+
+After this, an `emissions.csv` file should be available for the dashboard.
+
+## Launch the App
+
+```{r, eval = FALSE}
+library(tidycarbon)
+
+# Opens in your browser by default
+carbon_view()
+```
+
+You can also keep it in the R session viewer/browser behavior controlled manually:
+
+```{r, eval = FALSE}
+carbon_view(use_browser = FALSE)
+```
+
+## What You Will See
+
+### 1) System Metrics
+
+This tab contains:
+
+- Core OS and R information (`Sys.info()` + `R.version`)
+- Machine configuration fields gathered from CodeCarbon (CPU model, RAM size, region, etc.)
+- Full `sessionInfo()` output
+
+### 2) Carbon Analysis
+
+This tab reads your emissions logs and shows:
+
+- Total CO2 emissions (`emissions`)
+- Total energy consumed (`energy_consumed`)
+- Energy breakdown chart (`cpu_energy`, `gpu_energy`, `ram_energy`)
+- A table view of raw metrics from the log
+
+### 3) Carbon Equivalents
+
+This tab displays your computed emissions value and embeds an external calculator view for context.
+
+## Common Issues
+
+If the app cannot find required columns in your `emissions.csv`, it will report messages such as:
+
+- `"Column 'emissions' not found in emissions.csv."`
+- `"Column 'energy_consumed' not found in emissions.csv."`
+- `"Missing one or more columns: cpu_energy, gpu_energy, ram_energy."`
+
+In practice, these are usually caused by:
+
+1. Reading a non-CodeCarbon CSV with a matching name
+1. A stale or manually edited emissions file
+1. Mixed logs from different tools/formats
+
+Use a fresh `tidycarbon` tracking run to regenerate a clean file when in doubt.
+
+## Suggested Workflow
+
+1. Track one or more scripts/functions with `tidycarbon`.
+1. Open `carbon_view()` for exploratory diagnostics.
+1. Compare emissions and energy totals after optimization changes.
+1. Repeat and keep logs for transparent reporting.

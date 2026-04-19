@@ -26,4 +26,8 @@ Imports:
     uuid,
     ggplot2,
     rlang
+Suggests:
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
 RoxygenNote: 7.3.3
