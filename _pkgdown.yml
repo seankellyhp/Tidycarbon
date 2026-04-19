@@ -1,4 +1,24 @@
-url: ~
+url: https://seankellyhp.github.io/Tidycarbon/
 template:
   bootstrap: 5
+  bootswatch: flatly
+
+navbar:
+  structure:
+    left: [reference, articles, changelog]
+    right: [search, github]
+  components:
+    articles:
+      text: Articles
+      menu:
+      - text: Quickstart
+        href: index.html#quickstart
+      - text: Examples
+        href: index.html#examples
+    changelog:
+      text: Changelog
+      href: https://github.com/seankellyhp/Tidycarbon/releases
+    github:
+      icon: fab fa-github fa-lg
+      href: https://github.com/seankellyhp/Tidycarbon
 
