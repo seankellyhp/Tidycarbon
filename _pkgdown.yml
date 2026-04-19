@@ -11,6 +11,8 @@ navbar:
     articles:
       text: Articles
       menu:
+      - text: Carbon View App
+        href: articles/carbon-view-app.html
       - text: Quickstart
         href: index.html#quickstart
       - text: Examples
@@ -21,4 +23,6 @@ navbar:
     github:
       icon: fab fa-github fa-lg
       href: https://github.com/seankellyhp/Tidycarbon
+
+
 
