@@ -1,36 +1,32 @@
-
-# You can learn more about package authoring with RStudio at:
-#
-#   https://r-pkgs.org
-#
-# Some useful keyboard shortcuts for package authoring:
-#
-#   Install Package:           'Ctrl + Shift + B'
-#   Check Package:             'Ctrl + Shift + E'
-#   Test Package:              'Ctrl + Shift + T'
-
 #' Initialize Carbon Tracker
 #'
-#' @param project_name Name of the project
-#' @param measure_power_secs Seconds between power measurements
-#' @param tracking_mode Tracking mode (default "machine")
-#' @return A codecarbon EmissionsTracker object
+#' Creates a CodeCarbon `EmissionsTracker` and registers it as the session
+#' default tracker used by [carbon_step()] and [carbon_run()] (so those
+#' functions can be called without an explicit `tracker =`).
+#'
+#' @param project_name Name of the project.
+#' @param measure_power_secs Seconds between power measurements.
+#' @param tracking_mode Tracking mode (default "machine").
+#' @param output_dir Directory where `output_file` will be written
+#'   (default "." --- the project root).
+#' @param output_file Output CSV name (default "emissions.csv").
+#' @param offline Logical; only applied if supported by installed CodeCarbon.
+#' @return A codecarbon EmissionsTracker object, registered as the session
+#'   default.
 #' @export
 carbon_init <- function(project_name = "rtest",
-                        measure_power_secs = 10,
-                        tracking_mode = "machine") {
-  reticulate::py_require("codecarbon")
-  carbon <- reticulate::import("codecarbon")
-  # Fails offline - why would this need internet? Offline.
-  # Can I save the uv python project to my project folder for replication?
-
-  # Maybe have a flag, offline=TRUE
-
-  carbon$EmissionsTracker(
-    project_name = project_name,
-    measure_power_secs = measure_power_secs,
-    tracking_mode = tracking_mode
-  )
+                        measure_power_secs = 1,
+                        tracking_mode = "machine",
+                        output_dir = ".",
+                        output_file = "emissions.csv",
+                        offline = TRUE) {
+  tracker <- carbon_new_tracker(project_name, measure_power_secs,
+                                tracking_mode, output_dir, output_file,
+                                offline)
+  the$tracker     <- tracker
+  the$output_dir  <- output_dir
+  the$output_file <- output_file
+  tracker
 }
 
 

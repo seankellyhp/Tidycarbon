@@ -6,26 +6,28 @@
 \usage{
 carbon_run(
   expr,
-  tracker,
+  tracker = carbon_default_tracker(),
   label = "pipeline",
   task_id = uuid::UUIDgenerate(),
   output_dir = NULL,
-  output_file = "emissions.csv"
+  output_file = NULL
 )
 }
 \arguments{
 \item{expr}{An expression to evaluate (captured).}
 
-\item{tracker}{A CodeCarbon tracker from `carbon_init_pipe()`.}
+\item{tracker}{A CodeCarbon tracker. Defaults to the session tracker
+registered by [carbon_init()].}
 
 \item{label}{Optional label for the run.}
 
 \item{task_id}{Optional UUID string.}
 
-\item{output_dir}{Directory containing the emissions CSV. If NULL, attempts to
-read from `tracker$output_dir`.}
+\item{output_dir}{Directory containing the emissions CSV. If NULL, falls back
+to `tracker$output_dir` then the value registered by [carbon_init()].}
 
-\item{output_file}{CSV filename (default "emissions.csv").}
+\item{output_file}{CSV filename. If NULL, falls back to the value registered
+by [carbon_init()] (default "emissions.csv").}
 }
 \value{
 A list with:

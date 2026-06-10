@@ -15,7 +15,7 @@ Authors@R: c(
       email = "isaac.bravo@tum.de",
       role = c("aut")
     ))
-Description: With three lines of code, track and compare the energy, CPU and GPU use to estimate sustainablity values including carbon emissions and water use of R functions and scripts and carbon emissions of you 
+Description: With three lines of code, track and compare the energy, CPU and GPU use to estimate sustainablity values including carbon emissions and water use of R functions, scripts, and pipelines.
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
@@ -25,5 +25,9 @@ Imports:
     purrr,
     uuid,
     ggplot2,
-    rlang
+    rlang,
+    readr,
+    dplyr
+Suggests:
+    shiny
 RoxygenNote: 7.3.3

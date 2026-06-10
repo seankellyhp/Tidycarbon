@@ -16,11 +16,48 @@ py_has_kwarg <- function(py_callable, arg_name) {
   }, error = function(e) FALSE)
 }
 
-#' Initialize a CodeCarbon EmissionsTracker (pipe-friendly setup)
+#' Build a CodeCarbon EmissionsTracker (non-registering)
 #'
 #' Creates a CodeCarbon `EmissionsTracker` via reticulate and returns the Python
-#' tracker object. Adds a version guard for the `offline` parameter (only passed
-#' if supported by the installed CodeCarbon).
+#' tracker object without registering it as the session default. Adds a version
+#' guard for the `offline` parameter (only passed if supported by the installed
+#' CodeCarbon). Used internally by [carbon_init()] and [carbon_bench()].
+#'
+#' @param project_name Project name stored by CodeCarbon.
+#' @param measure_power_secs Sampling interval (seconds).
+#' @param tracking_mode CodeCarbon tracking mode (e.g., "machine").
+#' @param output_dir Directory where `output_file` will be written.
+#' @param output_file Output CSV name (default "emissions.csv").
+#' @param offline Logical; only applied if supported by installed CodeCarbon.
+#'
+#' @return A Python `codecarbon.emissions_tracker.EmissionsTracker` object.
+#' @keywords internal
+carbon_new_tracker <- function(project_name, measure_power_secs,
+                               tracking_mode, output_dir, output_file,
+                               offline) {
+  reticulate::py_require("codecarbon")
+  carbon <- reticulate::import("codecarbon")
+
+  tracker_ctor <- carbon$EmissionsTracker
+  args <- list(
+    project_name = project_name,
+    measure_power_secs = measure_power_secs,
+    tracking_mode = tracking_mode,
+    output_dir = output_dir,
+    output_file = output_file
+  )
+  if (isTRUE(py_has_kwarg(tracker_ctor, "offline"))) {
+    args$offline <- offline
+  }
+
+  do.call(tracker_ctor, args)
+}
+
+#' Initialize a CodeCarbon EmissionsTracker (pipe-friendly setup)
+#'
+#' Deprecated --- use [carbon_init()], which now has the full signature and
+#' registers the tracker as the session default. Kept as a thin wrapper so
+#' existing example scripts keep working.
 #'
 #' @param project_name Project name stored by CodeCarbon.
 #' @param measure_power_secs Sampling interval (seconds).
@@ -37,23 +74,10 @@ carbon_init_pipe <- function(project_name = "rtest",
                              output_dir = tempdir(),
                              output_file = "emissions.csv",
                              offline = TRUE) {
-
-  reticulate::py_require("codecarbon")
-  carbon <- reticulate::import("codecarbon")
-
-  tracker_ctor <- carbon$EmissionsTracker
-  has_offline <- py_has_kwarg(tracker_ctor, "offline")
-
-  args <- list(
-    project_name = project_name,
-    measure_power_secs = measure_power_secs,
-    tracking_mode = tracking_mode,
-    output_dir = output_dir,
-    output_file = output_file
-  )
-  if (isTRUE(has_offline)) {
-    args$offline <- offline
-  }
-
-  do.call(tracker_ctor, args)
+  carbon_init(project_name = project_name,
+              measure_power_secs = measure_power_secs,
+              tracking_mode = tracking_mode,
+              output_dir = output_dir,
+              output_file = output_file,
+              offline = offline)
 }

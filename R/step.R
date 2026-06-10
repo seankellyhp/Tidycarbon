@@ -11,43 +11,93 @@ carbon_collect <- function(x) {
 
 #' Track emissions for one pipeline step
 #'
-#' Wraps a single function call `.f(.data, ...)` with `tracker$start()` and
-#' `tracker$stop()`, then reads the latest row from CodeCarbon's emissions CSV.
+#' Wraps a single pipeline step with `tracker$start()` and `tracker$stop()`,
+#' then reads the latest row from CodeCarbon's emissions CSV.
+#'
+#' `.f` can be supplied two ways:
+#' - **Call form** (slide syntax): `carbon_step(x, tokens_ngrams(n = 1:3))`.
+#'   The unevaluated call has `.data` inserted as its first argument and is
+#'   evaluated in the caller's environment.
+#' - **Function/symbol form**: `carbon_step(x, tokens, remove_punct = TRUE)`,
+#'   `carbon_step(x, \(d) head(d, 3))`, `carbon_step(x, quanteda::tokens)`.
+#'   The function is applied as `.f(.data, ...)`.
 #'
 #' This is robust across CodeCarbon versions where `tracker$stop()` returns only
 #' a numeric (kgCO2) rather than a full data object.
 #'
 #' @param .data Input data (pipe LHS).
-#' @param .f Function to apply to `.data` (must accept `.data` as first arg).
-#' @param ... Passed to `.f`.
-#' @param tracker A CodeCarbon tracker from `carbon_init_pipe()`.
-#' @param label Optional human-readable label for the step.
+#' @param .f A function, or an unevaluated call whose first argument slot will
+#'   receive `.data`.
+#' @param ... Passed to `.f` in the function/symbol form (ignored, with a
+#'   warning, in the call form --- supply arguments inside the call instead).
+#' @param tracker A CodeCarbon tracker. Defaults to the session tracker
+#'   registered by [carbon_init()].
+#' @param label Optional human-readable label for the step. Defaults to the
+#'   deparsed `.f`.
 #' @param task_id Optional UUID string for joining/identification.
-#' @param output_dir Directory containing the emissions CSV. If NULL, attempts to
-#'   read from `tracker$output_dir`.
-#' @param output_file CSV filename (default "emissions.csv").
+#' @param output_dir Directory containing the emissions CSV. If NULL, falls back
+#'   to `tracker$output_dir` then the value registered by [carbon_init()].
+#' @param output_file CSV filename. If NULL, falls back to the value registered
+#'   by [carbon_init()] (default "emissions.csv").
 #'
-#' @return The transformed object (result of `.f(.data, ...)`) with a
-#'   `carbon_log` attribute (tibble).
+#' @return The transformed object with a `carbon_log` attribute (tibble).
+#' @examples
+#' \dontrun{
+#' carbon_init(project_name = "demo")
+#' out <- (1:10) |> carbon_step(sqrt()) |> carbon_step(sum())
+#' carbon_collect(out)
+#' }
 #' @export
 carbon_step <- function(.data,
                         .f,
                         ...,
-                        tracker,
+                        tracker = carbon_default_tracker(),
                         label = NULL,
                         task_id = uuid::UUIDgenerate(),
                         output_dir = NULL,
-                        output_file = "emissions.csv") {
+                        output_file = NULL) {
 
-  stopifnot(is.function(.f))
-  if (is.null(label)) label <- deparse(substitute(.f))
+  expr   <- substitute(.f)
+  caller <- parent.frame()
+
+  # Call form: carbon_step(x, tokens_ngrams(n = 1:3)).
+  # Anonymous functions (`function(x) ...`, `\(x) ...`) parse as calls with
+  # head `function`; namespaced bare functions (`quanteda::tokens`) parse as
+  # calls with head `::`/`:::`. All three must take the function form.
+  call_form <- is.call(expr) &&
+    !identical(expr[[1L]], quote(`function`)) &&
+    !identical(expr[[1L]], quote(`::`)) &&
+    !identical(expr[[1L]], quote(`:::`))
+
+  if (is.null(label)) label <- deparse1(expr)
+
+  if (call_form) {
+    if (...length() > 0) {
+      rlang::warn(
+        "Arguments in `...` are ignored in call form; put them inside the call."
+      )
+    }
+    new_call <- as.call(append(as.list(expr), list(quote(.data)), after = 1L))
+    eval_env <- new.env(parent = caller)
+    assign(".data", .data, envir = eval_env)
+    run <- function() eval(new_call, eval_env)
+  } else {
+    .f <- match.fun(.f)        # forces the promise; symbol & function forms
+    run <- function() .f(.data, ...)
+  }
+
+  # Force the tracker before the output_dir tryCatch below, so a missing
+  # default tracker aborts with "No active tracker" instead of being swallowed.
+  force(tracker)
 
   if (is.null(output_dir)) {
     output_dir <- tryCatch(tracker$output_dir, error = function(e) NULL)
   }
+  if (is.null(output_dir)) output_dir <- carbon_default_output_dir()
   if (is.null(output_dir)) {
-    rlang::abort("output_dir is required (or tracker must expose tracker$output_dir).")
+    rlang::abort("output_dir is required (pass it, or call carbon_init() first).")
   }
+  if (is.null(output_file)) output_file <- carbon_default_output_file()
 
   before_n <- nrow(carbon_read(output_dir, output_file))
 
@@ -56,7 +106,7 @@ carbon_step <- function(.data,
   t0 <- Sys.time()
   error_obj <- NULL
   out <- tryCatch(
-    .f(.data, ...),
+    run(),
     error = function(e) { error_obj <<- e; NULL }
   )
   wall_time_sec <- as.numeric(difftime(Sys.time(), t0, units = "secs"))

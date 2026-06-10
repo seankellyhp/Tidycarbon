@@ -75,3 +75,30 @@ run$log |> View()
 # ---- Read entire CSV (raw CodeCarbon log) ----
 csv_all <- carbon_read(out_dir, "emissions.csv")
 print(dplyr::glimpse(csv_all))
+
+
+# =========================
+# New slide-style syntax (COMPTEXT 2026, slide 12)
+# =========================
+# carbon_init() registers the tracker as the session default, so each
+# carbon_step() call needs neither tracker= nor output_dir=. The step call is
+# passed directly (the piped data fills its first argument slot).
+
+carbon_init(
+  project_name = "package_test_slide",
+  measure_power_secs = 1,
+  output_dir = out_dir,
+  output_file = "emissions.csv",
+  offline = TRUE
+)
+
+dfm_slide <- big_corp |>
+  carbon_step(tokens(remove_punct = TRUE, remove_symbols = TRUE, remove_numbers = TRUE)) |>
+  carbon_step(tokens_tolower()) |>
+  carbon_step(tokens_remove(stopwords("en"))) |>
+  carbon_step(tokens_wordstem()) |>
+  carbon_step(tokens_ngrams(n = 1:3)) |>
+  carbon_step(dfm())
+
+logs_slide <- carbon_collect(dfm_slide)
+print(logs_slide)

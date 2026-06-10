@@ -6,20 +6,33 @@
 \usage{
 carbon_init(
   project_name = "rtest",
-  measure_power_secs = 10,
-  tracking_mode = "machine"
+  measure_power_secs = 1,
+  tracking_mode = "machine",
+  output_dir = ".",
+  output_file = "emissions.csv",
+  offline = TRUE
 )
 }
 \arguments{
-\item{project_name}{Name of the project}
+\item{project_name}{Name of the project.}
 
-\item{measure_power_secs}{Seconds between power measurements}
+\item{measure_power_secs}{Seconds between power measurements.}
 
-\item{tracking_mode}{Tracking mode (default "machine")}
+\item{tracking_mode}{Tracking mode (default "machine").}
+
+\item{output_dir}{Directory where `output_file` will be written
+(default "." --- the project root).}
+
+\item{output_file}{Output CSV name (default "emissions.csv").}
+
+\item{offline}{Logical; only applied if supported by installed CodeCarbon.}
 }
 \value{
-A codecarbon EmissionsTracker object
+A codecarbon EmissionsTracker object, registered as the session
+  default.
 }
 \description{
-Initialize Carbon Tracker
+Creates a CodeCarbon `EmissionsTracker` and registers it as the session
+default tracker used by [carbon_step()] and [carbon_run()] (so those
+functions can be called without an explicit `tracker =`).
 }

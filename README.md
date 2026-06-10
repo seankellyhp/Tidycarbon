@@ -31,69 +31,74 @@ remotes::install_github("seankellyhp/Tidycarbon")
 
 ## Quickstart
 
-### Global Tracking (wrap any R code)
+### 1. Global Tracking (wrap any R code)
 Think of this like time benchmarking packages such as tictok or microbenchmark. You start the tracker and you stop the tracker. Everything in between remains the same. `tidycarbon` will measure your machine on the backend.
 
 ```r
 library(tidycarbon)
 
-# First, initiate the carbon tracking engine. 
-tracker <- carbon_init(project_name = "Fridays for Future")
+# First, initiate the carbon tracking engine.
+tracker <- carbon_init(
+  project_name = "COMPTEXT26",
+  measure_power_secs = 1,
+  output_file = "emissions.csv")
 
 # Second, start the tracker.
 tracker_start(tracker)
 
 # Next, write your R code here (supports tidyverse, parallel, topicmodels, quanteda, ...everything)
 library(dplyr)
-iris %>%
-  select(Sepal.Length) %>%
-  pull() %>%
+iris |>
+  select(Sepal.Length) |>
+  pull() |>
   sum()
 
-# Finally, stop the tracker. 
+# Finally, stop the tracker.
 tracker_stop(tracker)
 ```
 
-Emissions data is automatically logged to `emissions.csv` in the root project folder. Unless otherwise specified, emissions results will always be appended to this file. 
+Emissions data is automatically logged to `emissions.csv` in the root project folder. Unless otherwise specified, emissions results will always be appended to this file.
 
-### Task Tracking (functions with tibble output)
-This is a little different from a time benchmarking package. As one of the main use-cases of an emissions tracker is to measure the carbon footprint of heavy computational processes such as machine learning or language models, the carbon_track functions track the emissions for a specific function or list of functions.    
+### 2. Pipeline Steps (measure each step in a pipe)
+`carbon_step()` measures one step of a pipeline. After calling `carbon_init()`, drop it into any pipe by passing the step call directly --- the piped data is inserted as the call's first argument, and the session tracker is used automatically (no `tracker =` needed). Finish with `carbon_collect()` to pull the per-step log.
+
+```r
+library(tidycarbon)
+library(quanteda)
+
+carbon_init(project_name = "COMPTEXT26", measure_power_secs = 1)
+
+dfm_big <- tokens(big_corpus, remove_punct = TRUE, remove_symbols = TRUE, remove_numbers = TRUE) |>
+  tokens_tolower() |>
+  tokens_remove(stopwords("en")) |>
+  tokens_wordstem() |>
+  tidycarbon::carbon_step(tokens_ngrams(n = 1:3)) |>
+  tidycarbon::carbon_step(dfm())
+
+carbon_collect(dfm_big)   # one row per measured step
+```
+
+### 3. Benchmarking (compare alternatives)
+`carbon_bench()` runs two or more named expressions repeatedly and tracks emissions for each, then `autoplot()` visualizes the comparison.
 
 ```r
 library(tidycarbon)
 
-# First, initiate the carbon tracking engine. 
-tracker <- carbon_init(project_name = "Fridays for Future")
-
-# Next, define your function(s)
-square <- function(x) x^2
-
-# Then, track a single function
-carbon_track(square, x = 42, tracker = tracker)
-
-# Or, track multiple functions
-tasks <- list(
-  list(fun = square, args = list(x = 2)),
-  list(fun = square, args = list(x = 3))
-)
-carbon_track_all(tasks, tracker)
-
-# Finally, stop the tracker. 
-tracker_stop(tracker)
-```
-
-Returns a tidy tibble with task id, function results, metadata, emissions, energy, hardware, and geo data:
-
-```
-# A tibble: 1 × 35
-  project_name run_id ... emissions_total cpu_power ...
-  <chr>        <chr>  ...           <dbl>      <dbl> ...
+carbon_bench(
+  LLM  = rollama::query(...),
+  DICT = quanteda.sentiment::textstat_polarity(txt, dictionary = LSD2015),
+  times = 10) |>
+  autoplot(metric = "emissions_total")
 ```
 
 ## Key Functions
 
-- `carbon_init()`: Create a CodeCarbon tracker.
+- `carbon_init()`: Create a CodeCarbon tracker (registered as the session default).
 - `tracker_start()` / `tracker_stop()`: Global run tracking.
+- `carbon_step()`: Measure one pipeline step.
+- `carbon_collect()`: Collect the per-step emissions log from a pipeline result.
+- `carbon_run()`: Measure a whole expression in a single tracking window.
+- `carbon_bench()`: Benchmark and compare two or more expressions.
 - `carbon_track(fun, ..., tracker)`: Track single function.
 - `carbon_track_all(tasks, tracker)`: Batch track list of tasks.
 - `carbon_view()`: Starts a Shiny dashboard at localhost (in development)

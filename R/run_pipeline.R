@@ -3,30 +3,38 @@
 #' Runs an expression under a single `tracker$start()` / `tracker$stop()` window.
 #'
 #' @param expr An expression to evaluate (captured).
-#' @param tracker A CodeCarbon tracker from `carbon_init_pipe()`.
+#' @param tracker A CodeCarbon tracker. Defaults to the session tracker
+#'   registered by [carbon_init()].
 #' @param label Optional label for the run.
 #' @param task_id Optional UUID string.
-#' @param output_dir Directory containing the emissions CSV. If NULL, attempts to
-#'   read from `tracker$output_dir`.
-#' @param output_file CSV filename (default "emissions.csv").
+#' @param output_dir Directory containing the emissions CSV. If NULL, falls back
+#'   to `tracker$output_dir` then the value registered by [carbon_init()].
+#' @param output_file CSV filename. If NULL, falls back to the value registered
+#'   by [carbon_init()] (default "emissions.csv").
 #'
 #' @return A list with:
 #'   - `result`: the evaluated expression
 #'   - `log`: a 1-row tibble with emissions/time and CSV-derived fields
 #' @export
 carbon_run <- function(expr,
-                       tracker,
+                       tracker = carbon_default_tracker(),
                        label = "pipeline",
                        task_id = uuid::UUIDgenerate(),
                        output_dir = NULL,
-                       output_file = "emissions.csv") {
+                       output_file = NULL) {
+
+  # Force the tracker before the output_dir tryCatch below, so a missing
+  # default tracker aborts with "No active tracker" instead of being swallowed.
+  force(tracker)
 
   if (is.null(output_dir)) {
     output_dir <- tryCatch(tracker$output_dir, error = function(e) NULL)
   }
+  if (is.null(output_dir)) output_dir <- carbon_default_output_dir()
   if (is.null(output_dir)) {
-    rlang::abort("output_dir is required (or tracker must expose tracker$output_dir).")
+    rlang::abort("output_dir is required (pass it, or call carbon_init() first).")
   }
+  if (is.null(output_file)) output_file <- carbon_default_output_file()
 
   before_n <- nrow(carbon_read(output_dir, output_file))
 

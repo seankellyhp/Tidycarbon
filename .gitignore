@@ -3,3 +3,5 @@
 .RData
 .Ruserdata
 docs
+emissions.csv
+inst/emissions.csv
