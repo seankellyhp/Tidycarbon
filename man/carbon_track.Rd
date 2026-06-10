@@ -2,22 +2,44 @@
 % Please edit documentation in R/tidycarbon_core.R
 \name{carbon_track}
 \alias{carbon_track}
-\title{Track emissions for a single function}
+\title{Track emissions for a single function call}
 \usage{
-carbon_track(fun, ..., tracker, task_id = uuid::UUIDgenerate())
+carbon_track(
+  fun,
+  ...,
+  tracker = carbon_default_tracker(),
+  label = NULL,
+  task_id = uuid::UUIDgenerate(),
+  output_dir = NULL,
+  output_file = NULL
+)
 }
 \arguments{
-\item{fun}{Arbitrary function}
+\item{fun}{A function to call.}
 
-\item{...}{Function inputs}
+\item{...}{Arguments passed to `fun`.}
 
-\item{tracker}{codecarbon EmissionsTracker object}
+\item{tracker}{A CodeCarbon tracker. Defaults to the session tracker
+registered by [carbon_init()].}
 
-\item{task_id}{Unique ID of function task}
+\item{label}{Optional human-readable label. Defaults to the deparsed `fun`.}
+
+\item{task_id}{Optional UUID string for joining/identification.}
+
+\item{output_dir}{Directory for the CSV artifact. If NULL, falls back to
+`tracker$output_dir` then the value registered by [carbon_init()]; if none
+resolves, the artifact is skipped.}
+
+\item{output_file}{CSV filename for the artifact. If NULL, falls back to the
+value registered by [carbon_init()] (default "emissions_r.csv").}
 }
 \value{
-A tibble of function results and emissions
+A rich one-row emissions tibble (the [carbon_step()] log shape) with
+  `args` and `result` list-columns added after `label`.
 }
 \description{
-Track emissions for a single function
+Calls `fun(...)` inside a CodeCarbon task window via the shared measurement
+core ([carbon_measure()]), so it behaves like [carbon_step()] /
+[carbon_run()]: the rich emissions row comes from `stop_task()` in memory
+and is appended to a CSV as a best-effort artifact (never read back).
 }

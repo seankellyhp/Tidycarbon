@@ -16,6 +16,6 @@ carbon_default_tracker <- function() {
 carbon_default_output_dir <- function() .the$output_dir
 
 #' Default output file registered by carbon_init()
-#' @return The registered output file name, or "emissions.csv".
+#' @return The registered output file name, or "emissions_r.csv".
 #' @keywords internal
-carbon_default_output_file <- function() .the$output_file %||% "emissions.csv"
+carbon_default_output_file <- function() .the$output_file %||% "emissions_r.csv"

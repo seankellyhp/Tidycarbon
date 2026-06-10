@@ -41,10 +41,12 @@ carbon_bench <- function(..., times = 10, tracker = NULL,
                                   measure_power_secs = measure_power_secs,
                                   tracking_mode = "machine",
                                   output_dir = tempdir(),
-                                  output_file = "emissions.csv",
+                                  output_file = "emissions_r.csv",
                                   offline = TRUE)
-    tracker_start(tracker)
-    on.exit(tracker_stop(tracker), add = TRUE)
+    # Raw start/stop, not tracker_start()/tracker_stop(): the throwaway
+    # benchmark session must not log a "session" row to the artifact.
+    tracker$start()
+    on.exit(tracker$stop(), add = TRUE)
   }
 
   if (isTRUE(warmup)) {

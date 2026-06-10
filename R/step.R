@@ -39,7 +39,7 @@ carbon_collect <- function(x) {
 #'   `tracker$output_dir` then the value registered by [carbon_init()]; if none
 #'   resolves, the artifact is skipped.
 #' @param output_file CSV filename for the artifact. If NULL, falls back to the
-#'   value registered by [carbon_init()] (default "emissions.csv").
+#'   value registered by [carbon_init()] (default "emissions_r.csv").
 #'
 #' @return The transformed object with a `carbon_log` attribute (a rich
 #'   one-row tibble of in-memory emissions data).

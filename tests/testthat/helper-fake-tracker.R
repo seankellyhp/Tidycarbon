@@ -24,6 +24,19 @@ fake_tracker <- function(output_dir = tempdir(), emissions = 0.0001) {
   )
 }
 
+# Session-API backend stub for tracker_start()/tracker_stop(): stop() returns
+# the scalar, and the rich object is stashed on $final_emissions_data (the
+# CodeCarbon behavior tracker_stop() reads).
+fake_session_tracker <- function(output_dir = tempdir(), emissions = 0.0001,
+                                 final_emissions_data = fake_emissions(emissions = emissions)) {
+  list(
+    output_dir = output_dir,
+    start = function() NULL,
+    stop  = function() emissions,
+    final_emissions_data = final_emissions_data
+  )
+}
+
 # Write a one-row CodeCarbon-shaped emissions CSV and return its directory.
 write_emissions_csv <- function(file = "emissions.csv",
                                 dir = file.path(tempdir(), basename(tempfile("em")))) {

@@ -2,16 +2,51 @@
 % Please edit documentation in R/tidycarbon_core.R
 \name{tracker_stop}
 \alias{tracker_stop}
-\title{Stop Carbon Tracker}
+\title{Stop global emissions tracking and log the session}
 \usage{
-tracker_stop(tracker)
+tracker_stop(
+  tracker = carbon_default_tracker(),
+  label = "session",
+  task_id = uuid::UUIDgenerate(),
+  output_dir = NULL,
+  output_file = NULL
+)
 }
 \arguments{
-\item{tracker}{codecarbon EmissionsTracker object}
+\item{tracker}{A CodeCarbon tracker. Defaults to the session tracker
+registered by [carbon_init()].}
+
+\item{label}{Label for the log row (default "session").}
+
+\item{task_id}{Optional UUID string for joining/identification.}
+
+\item{output_dir}{Directory for the CSV artifact. If NULL, falls back to
+`tracker$output_dir` then the value registered by [carbon_init()]; if none
+resolves, the artifact is skipped.}
+
+\item{output_file}{CSV filename for the artifact. If NULL, falls back to the
+value registered by [carbon_init()] (default "emissions_r.csv").}
 }
 \value{
-Stops Global Emissions Tracker
+A rich one-row emissions tibble (the [carbon_step()] log shape).
 }
 \description{
-Stop Carbon Tracker
+Stops the tracker and turns the session's emissions into the same uniform
+one-row tibble that [carbon_step()] / [carbon_run()] / [carbon_track()]
+produce, appending it to the CSV artifact as a best-effort write.
+}
+\details{
+The rich per-session data comes from `tracker$final_emissions_data`, which
+CodeCarbon stashes on the tracker after `stop()`. CodeCarbon accumulates
+across repeated `start()`/`stop()` cycles on one tracker, so each row
+reports totals **since the tracker was created** --- use one
+[carbon_init()] per session you want measured separately.
+`wall_time_sec` is measured from the most recent [tracker_start()] call.
+
+A stopped CodeCarbon tracker cannot measure again, so when the session
+default is stopped a fresh tracker is created from the [carbon_init()]
+arguments and registered in its place; later [carbon_step()] /
+[carbon_run()] / [carbon_track()] calls keep working. A tracker you
+created yourself and passed explicitly is finished after this call ---
+do not reuse it.
 }

@@ -7,7 +7,7 @@
 carbon_default_output_file()
 }
 \value{
-The registered output file name, or "emissions.csv".
+The registered output file name, or "emissions_r.csv".
 }
 \description{
 Default output file registered by carbon_init()

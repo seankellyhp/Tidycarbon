@@ -21,7 +21,6 @@ carbon_init(
   project_name = "topicmodels_guardian",
   measure_power_secs = 1,
   output_dir = out_dir,
-  output_file = "emissions.csv",
   offline = TRUE
 )
 
@@ -48,6 +47,6 @@ print(run$log)
 # Top terms per topic
 terms(run$result, 10)
 
-# ---- Read entire CSV (raw CodeCarbon log) ----
-csv_all <- carbon_read(out_dir, "emissions.csv")
+# ---- Read entire CSV (the uniform emissions_r.csv artifact) ----
+csv_all <- carbon_read(out_dir)
 print(dplyr::glimpse(csv_all))

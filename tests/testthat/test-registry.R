@@ -17,9 +17,9 @@ test_that("carbon_default_* read the registry and abort when no tracker is set",
   the$output_dir <- NULL
   the$output_file <- NULL
 
-  # Unset defaults: dir is NULL, file falls back to "emissions.csv".
+  # Unset defaults: dir is NULL, file falls back to "emissions_r.csv".
   expect_null(tidycarbon:::carbon_default_output_dir())
-  expect_identical(tidycarbon:::carbon_default_output_file(), "emissions.csv")
+  expect_identical(tidycarbon:::carbon_default_output_file(), "emissions_r.csv")
   expect_error(tidycarbon:::carbon_default_tracker(), "No active tracker")
 
   # Once registered, the accessors echo the stored values.

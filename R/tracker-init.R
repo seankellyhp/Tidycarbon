@@ -11,8 +11,10 @@ py_has_kwarg <- function(py_callable, arg_name) {
   tryCatch({
     inspect <- reticulate::import("inspect")
     sig <- inspect$signature(py_callable)
-    params <- names(reticulate::py_to_r(sig$parameters))
-    arg_name %in% params
+    # parameters is an OrderedDict; py_to_r() on it yields the dict *methods*
+    # (copy/get/items/...), not the parameter names, so list() the keys.
+    keys <- reticulate::import_builtins()$list(sig$parameters$keys())
+    arg_name %in% reticulate::py_to_r(keys)
   }, error = function(e) FALSE)
 }
 
@@ -27,7 +29,7 @@ py_has_kwarg <- function(py_callable, arg_name) {
 #' @param measure_power_secs Sampling interval (seconds).
 #' @param tracking_mode CodeCarbon tracking mode (e.g., "machine").
 #' @param output_dir Directory where `output_file` will be written.
-#' @param output_file Output CSV name (default "emissions.csv").
+#' @param output_file Output CSV name (default "emissions_r.csv").
 #' @param offline Logical; only applied if supported by installed CodeCarbon.
 #'
 #' @return A Python `codecarbon.emissions_tracker.EmissionsTracker` object.
@@ -48,6 +50,12 @@ carbon_new_tracker <- function(project_name, measure_power_secs,
   )
   if (isTRUE(py_has_kwarg(tracker_ctor, "offline"))) {
     args$offline <- offline
+  }
+  # tidycarbon writes its own uniform artifact (carbon_write_artifact()); the
+  # native CodeCarbon CSV has a different schema, so suppress it to keep
+  # output_file single-schema.
+  if (isTRUE(py_has_kwarg(tracker_ctor, "save_to_file"))) {
+    args$save_to_file <- FALSE
   }
 
   do.call(tracker_ctor, args)

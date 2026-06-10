@@ -22,7 +22,7 @@ carbon_new_tracker(
 
 \item{output_dir}{Directory where `output_file` will be written.}
 
-\item{output_file}{Output CSV name (default "emissions.csv").}
+\item{output_file}{Output CSV name (default "emissions_r.csv").}
 
 \item{offline}{Logical; only applied if supported by installed CodeCarbon.}
 }

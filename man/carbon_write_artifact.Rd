@@ -15,7 +15,8 @@ carbon_write_artifact(log, output_dir, output_file)
 Invisibly `NULL`.
 }
 \description{
-Merges the row into any existing file (filling differing schemas with `NA`)
-and rewrites it. Any failure is swallowed so measurement is unaffected.
+Appends `log` to the file when its header matches; writes a fresh file when
+the file is absent or carries a different (e.g. legacy) schema. Any failure
+is swallowed so measurement is unaffected.
 }
 \keyword{internal}

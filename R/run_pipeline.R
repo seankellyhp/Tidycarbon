@@ -13,7 +13,7 @@
 #'   `tracker$output_dir` then the value registered by [carbon_init()]; if none
 #'   resolves, the artifact is skipped.
 #' @param output_file CSV filename for the artifact. If NULL, falls back to the
-#'   value registered by [carbon_init()] (default "emissions.csv").
+#'   value registered by [carbon_init()] (default "emissions_r.csv").
 #'
 #' @return A list with:
 #'   - `result`: the evaluated expression

@@ -9,7 +9,7 @@ carbon_init(
   measure_power_secs = 1,
   tracking_mode = "machine",
   output_dir = ".",
-  output_file = "emissions.csv",
+  output_file = "emissions_r.csv",
   offline = TRUE
 )
 }
@@ -23,7 +23,7 @@ carbon_init(
 \item{output_dir}{Directory where `output_file` will be written
 (default "." --- the project root).}
 
-\item{output_file}{Output CSV name (default "emissions.csv").}
+\item{output_file}{Output CSV name (default "emissions_r.csv").}
 
 \item{offline}{Logical; only applied if supported by installed CodeCarbon.}
 }
@@ -33,6 +33,13 @@ A codecarbon EmissionsTracker object, registered as the session
 }
 \description{
 Creates a CodeCarbon `EmissionsTracker` and registers it as the session
-default tracker used by [carbon_step()] and [carbon_run()] (so those
-functions can be called without an explicit `tracker =`).
+default tracker used by [carbon_step()], [carbon_run()], [carbon_track()],
+and [tracker_start()] / [tracker_stop()] (so those functions can be called
+without an explicit `tracker =`).
+}
+\details{
+All tidycarbon measurement functions append uniform rows (the
+[carbon_step()] log schema) to `output_file`. CodeCarbon's own native CSV
+writing is disabled on the tracker, so `output_file` only ever contains
+tidycarbon's schema.
 }

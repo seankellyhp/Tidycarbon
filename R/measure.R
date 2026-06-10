@@ -27,7 +27,7 @@ carbon_measure <- function(run, tracker, label, task_id, output_dir, output_file
     output_dir <- tryCatch(tracker$output_dir, error = function(e) NULL)
   }
   if (is.null(output_dir)) output_dir <- carbon_default_output_dir()
-  if (is.null(output_file)) output_file <- carbon_default_output_file() %||% "emissions.csv"
+  if (is.null(output_file)) output_file <- carbon_default_output_file()
 
   tryCatch(tracker$start_task(), error = function(e) NULL)
 

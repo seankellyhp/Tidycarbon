@@ -37,7 +37,7 @@ deparsed `.f`.}
 resolves, the artifact is skipped.}
 
 \item{output_file}{CSV filename for the artifact. If NULL, falls back to the
-value registered by [carbon_init()] (default "emissions.csv").}
+value registered by [carbon_init()] (default "emissions_r.csv").}
 }
 \value{
 The transformed object with a `carbon_log` attribute (a rich
