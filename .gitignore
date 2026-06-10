@@ -2,8 +2,13 @@
 .Rhistory
 .RData
 .Ruserdata
-docs
+dev_notes
 /doc/
 /Meta/
 emissions.csv
 inst/emissions.csv
+CLAUDE.md
+.claude
+docs/CLAUDE.html
+docs/CLAUDE.md
+
