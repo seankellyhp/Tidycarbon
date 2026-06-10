@@ -113,7 +113,7 @@ See `vignettes` for more examples (in development).
 - **Tidy output**: Results + emissions in one tibble.
 - **Visual Dashboard**: Results are viewed from a Shiny Dashboard (in development)
 - **Modern reticulate**: Auto-imports `codecarbon`.
-- **Roadmap**: Tests, vignettes, website, pipe operator.
+- **Roadmap**: Tests, vignettes, website.
 
 ## Citation
 
