@@ -78,7 +78,29 @@ dfm_big <- tokens(big_corpus, remove_punct = TRUE, remove_symbols = TRUE, remove
 carbon_collect(dfm_big)   # one row per measured step
 ```
 
-### 3. Benchmarking (compare alternatives)
+### 3. Whole-Pipeline Tracking (one window)
+`carbon_run()` measures an entire expression in a single tracking window (rather than step-by-step) and returns a list with the evaluated `result` and a one-row `log`. Like `carbon_step()`, it uses the session tracker registered by `carbon_init()` unless you pass `tracker =`.
+
+```r
+library(tidycarbon)
+library(quanteda)
+
+carbon_init(project_name = "COMPTEXT26", measure_power_secs = 1)
+
+run <- carbon_run({
+  tokens(big_corpus, remove_punct = TRUE) |>
+    tokens_tolower() |>
+    tokens_remove(stopwords("en")) |>
+    tokens_wordstem() |>
+    tokens_ngrams(n = 1:3) |>
+    dfm()
+})
+
+run$result   # the dfm
+run$log      # one row: emissions, energy, wall time
+```
+
+### 4. Benchmarking (compare alternatives)
 `carbon_bench()` runs two or more named expressions repeatedly and tracks emissions for each, then `autoplot()` visualizes the comparison.
 
 ```r
@@ -98,6 +120,7 @@ carbon_bench(
 - `carbon_step()`: Measure one pipeline step.
 - `carbon_collect()`: Collect the per-step emissions log from a pipeline result.
 - `carbon_run()`: Measure a whole expression in a single tracking window.
+- `carbon_read()`: Read the raw CodeCarbon emissions CSV as a tibble.
 - `carbon_bench()`: Benchmark and compare two or more expressions.
 - `carbon_track(fun, ..., tracker)`: Track single function.
 - `carbon_track_all(tasks, tracker)`: Batch track list of tasks.

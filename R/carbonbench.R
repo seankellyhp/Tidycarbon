@@ -91,12 +91,15 @@ carbon_bench <- function(..., times = 10, tracker = NULL,
   structure(rows, class = c("carbonbench", class(rows)))
 }
 
-#' @rdname carbon_bench
-#' @export
-carbonbench <- carbon_bench
-
+#' Plot a carbonbench result
+#'
+#' @param object A `carbonbench` tibble returned by [carbon_bench()].
+#' @param metric Which metric column to plot.
+#' @param ... Unused; required by the [ggplot2::autoplot()] generic.
+#' @return A ggplot object.
 #' @importFrom ggplot2 autoplot
 #' @importFrom rlang .data
+#' @method autoplot carbonbench
 #' @export
 autoplot.carbonbench <- function(object, metric = c("duration", "emissions_total",
                                                     "energy_consumed"), ...) {

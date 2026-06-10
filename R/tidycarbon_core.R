@@ -23,9 +23,9 @@ carbon_init <- function(project_name = "rtest",
   tracker <- carbon_new_tracker(project_name, measure_power_secs,
                                 tracking_mode, output_dir, output_file,
                                 offline)
-  the$tracker     <- tracker
-  the$output_dir  <- output_dir
-  the$output_file <- output_file
+  .the$tracker     <- tracker
+  .the$output_dir  <- output_dir
+  .the$output_file <- output_file
   tracker
 }
 

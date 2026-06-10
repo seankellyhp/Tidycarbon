@@ -2,19 +2,9 @@
 % Please edit documentation in R/carbonbench.R
 \name{carbon_bench}
 \alias{carbon_bench}
-\alias{carbonbench}
 \title{Benchmark carbon emissions of two or more functions}
 \usage{
 carbon_bench(
-  ...,
-  times = 10,
-  tracker = NULL,
-  project_name = "carbonbench",
-  measure_power_secs = 0.01,
-  warmup = TRUE
-)
-
-carbonbench(
   ...,
   times = 10,
   tracker = NULL,

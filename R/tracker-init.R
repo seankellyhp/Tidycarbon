@@ -52,32 +52,3 @@ carbon_new_tracker <- function(project_name, measure_power_secs,
 
   do.call(tracker_ctor, args)
 }
-
-#' Initialize a CodeCarbon EmissionsTracker (pipe-friendly setup)
-#'
-#' Deprecated --- use [carbon_init()], which now has the full signature and
-#' registers the tracker as the session default. Kept as a thin wrapper so
-#' existing example scripts keep working.
-#'
-#' @param project_name Project name stored by CodeCarbon.
-#' @param measure_power_secs Sampling interval (seconds).
-#' @param tracking_mode CodeCarbon tracking mode (e.g., "machine").
-#' @param output_dir Directory where `output_file` will be written.
-#' @param output_file Output CSV name (default "emissions.csv").
-#' @param offline Logical; only applied if supported by installed CodeCarbon.
-#'
-#' @return A Python `codecarbon.emissions_tracker.EmissionsTracker` object.
-#' @export
-carbon_init_pipe <- function(project_name = "rtest",
-                             measure_power_secs = 1,
-                             tracking_mode = "machine",
-                             output_dir = tempdir(),
-                             output_file = "emissions.csv",
-                             offline = TRUE) {
-  carbon_init(project_name = project_name,
-              measure_power_secs = measure_power_secs,
-              tracking_mode = tracking_mode,
-              output_dir = output_dir,
-              output_file = output_file,
-              offline = offline)
-}
