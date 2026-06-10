@@ -33,27 +33,34 @@ pkgload::load_all(".", quiet = TRUE)                    # internals visible
 pkgload::load_all(".", quiet = TRUE, export_all = FALSE) # public surface only
 ```
 
-There is **no `tests/` directory**. Verification is done with ad-hoc smoke
-scripts run via `Rscript` (see `docs/api_residual_cleanup_plan.md` Step 8 for a
-canonical example, including fake-tracker stubs that exercise the code paths
-without a live Python backend).
+Tests live in `tests/testthat/`. Most run without a live Python backend via
+the fake-tracker stubs in `tests/testthat/helper-fake-tracker.R` (`fake_tracker()`
+returns an object with `start_task()`/`stop_task()`; `fake_emissions()` is the
+CodeCarbon-shaped row it yields). Run them with:
+
+```r
+Rscript -e 'pkgload::load_all(".", quiet=TRUE); testthat::test_dir("tests/testthat")'
+```
 
 ## Architecture
 
-**Two parallel measurement backends** — know which one you are touching:
+**All measurement now runs on CodeCarbon's task API** (`start_task()` /
+`stop_task()`), which returns rich (~33-column) emissions data in-memory:
 
-1. **CSV-tail backend** (`carbon_step()`, `carbon_run()`): wraps code in
-   `tracker$start()`/`tracker$stop()`, then reads the new tail row from
-   CodeCarbon's `emissions.csv`. Lossy and race-prone, but produces the
-   ~11-column log the workshop slides demo. The shared core lives in
-   `R/measure.R::carbon_measure()` — both functions delegate to it, so fix
-   measurement logic there once, not twice.
-2. **Task API backend** (`carbon_track()`, `carbon_track_all()`,
-   `carbon_bench()`): uses CodeCarbon's `start_task()`/`stop_task()`, which
-   returns rich (~33-column) emissions data in-memory. `carbon_track*` are the
-   oldest API, predate the session registry, and are slated for a future
-   redesign — see the "Deferred" section of `docs/api_residual_cleanup_plan.md`.
-   Don't fold them into a cleanup pass; it's a design decision.
+1. **`carbon_step()` / `carbon_run()`**: delegate to the shared core
+   `R/measure.R::carbon_measure()`, which runs the code in a task window,
+   builds the rich log row from the in-memory `stop_task()` object, and writes
+   that row to `emissions.csv` as a **best-effort artifact**. The CSV is never
+   read back — a failed (or skipped) write never affects the result or log, so
+   it is not load-bearing. Fix measurement logic in `carbon_measure()` once,
+   not twice. (History: these used to wrap `start()`/`stop()` and scrape the
+   CSV tail for an ~11-column log; that backend was retired. The original 11
+   column *names* are preserved as a subset of the rich log for compatibility.)
+2. **`carbon_track()` / `carbon_track_all()` / `carbon_bench()`**: also use
+   `start_task()`/`stop_task()` directly. `carbon_track*` are the oldest API,
+   predate the session registry, and are slated for a future redesign — see the
+   "Deferred" section of `docs/api_residual_cleanup_plan.md`. Don't fold them
+   into a cleanup pass; it's a design decision.
 
 **Session tracker registry** (`R/zzz.R`): `carbon_init()` stores the active
 tracker and output paths in the package-internal `.the` environment.
@@ -71,9 +78,9 @@ the dot prefix.
 | `R/zzz.R` | `.the` registry env + `carbon_default_*()` accessors |
 | `R/step.R` | `carbon_step()`, `carbon_collect()` |
 | `R/run_pipeline.R` | `carbon_run()` |
-| `R/measure.R` | `carbon_measure()` — shared CSV-tail core |
+| `R/measure.R` | `carbon_measure()` (shared task-API core) + `carbon_emissions_row()`, `carbon_write_artifact()` |
 | `R/carbonbench.R` | `carbon_bench()` + `autoplot.carbonbench()` |
-| `R/io.R` | `carbon_read()`, `carbon_last_row()` |
+| `R/io.R` | `carbon_read()` |
 | `R/carbon_view.R` | `carbon_view()` Shiny launcher (`inst/app/app.R`) |
 | `R/utils.R` | internal `%||%` |
 | `inst/*.R` | runnable example scripts (not loaded by the package) |

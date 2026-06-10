@@ -23,17 +23,20 @@ registered by [carbon_init()].}
 
 \item{task_id}{Optional UUID string.}
 
-\item{output_dir}{Directory containing the emissions CSV. If NULL, falls back
-to `tracker$output_dir` then the value registered by [carbon_init()].}
+\item{output_dir}{Directory for the CSV artifact. If NULL, falls back to
+`tracker$output_dir` then the value registered by [carbon_init()]; if none
+resolves, the artifact is skipped.}
 
-\item{output_file}{CSV filename. If NULL, falls back to the value registered
-by [carbon_init()] (default "emissions.csv").}
+\item{output_file}{CSV filename for the artifact. If NULL, falls back to the
+value registered by [carbon_init()] (default "emissions.csv").}
 }
 \value{
 A list with:
   - `result`: the evaluated expression
-  - `log`: a 1-row tibble with emissions/time and CSV-derived fields
+  - `log`: a rich one-row tibble of in-memory emissions data
 }
 \description{
-Runs an expression under a single `tracker$start()` / `tracker$stop()` window.
+Runs an expression in a single CodeCarbon task window
+(`tracker$start_task()` / `tracker$stop_task()`). Emissions data is returned
+in memory and also appended to a CSV as a best-effort artifact.
 }

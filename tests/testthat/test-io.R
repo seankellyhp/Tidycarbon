@@ -11,14 +11,3 @@ test_that("carbon_read() returns an empty tibble for a missing file and reads a 
   expect_equal(nrow(df), 1)
   expect_equal(df$energy_consumed, 2)
 })
-
-# 3. carbon_last_row() is the internal tail reader used by carbon_measure().
-test_that("carbon_last_row() is NULL when empty and the final row otherwise", {
-  missing_dir <- file.path(tempdir(), "carbon-last-missing")
-  expect_null(tidycarbon:::carbon_last_row(missing_dir, "nope.csv"))
-
-  dir <- write_emissions_csv()
-  last <- tidycarbon:::carbon_last_row(dir, "emissions.csv")
-  expect_equal(nrow(last), 1)
-  expect_equal(last$duration, 1.5)
-})

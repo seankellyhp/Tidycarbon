@@ -1,20 +1,23 @@
 #' Track emissions for a whole pipeline/expression
 #'
-#' Runs an expression under a single `tracker$start()` / `tracker$stop()` window.
+#' Runs an expression in a single CodeCarbon task window
+#' (`tracker$start_task()` / `tracker$stop_task()`). Emissions data is returned
+#' in memory and also appended to a CSV as a best-effort artifact.
 #'
 #' @param expr An expression to evaluate (captured).
 #' @param tracker A CodeCarbon tracker. Defaults to the session tracker
 #'   registered by [carbon_init()].
 #' @param label Optional label for the run.
 #' @param task_id Optional UUID string.
-#' @param output_dir Directory containing the emissions CSV. If NULL, falls back
-#'   to `tracker$output_dir` then the value registered by [carbon_init()].
-#' @param output_file CSV filename. If NULL, falls back to the value registered
-#'   by [carbon_init()] (default "emissions.csv").
+#' @param output_dir Directory for the CSV artifact. If NULL, falls back to
+#'   `tracker$output_dir` then the value registered by [carbon_init()]; if none
+#'   resolves, the artifact is skipped.
+#' @param output_file CSV filename for the artifact. If NULL, falls back to the
+#'   value registered by [carbon_init()] (default "emissions.csv").
 #'
 #' @return A list with:
 #'   - `result`: the evaluated expression
-#'   - `log`: a 1-row tibble with emissions/time and CSV-derived fields
+#'   - `log`: a rich one-row tibble of in-memory emissions data
 #' @export
 carbon_run <- function(expr,
                        tracker = carbon_default_tracker(),

@@ -15,14 +15,21 @@ carbon_measure(run, tracker, label, task_id, output_dir, output_file)
 
 \item{task_id}{UUID string.}
 
-\item{output_dir, output_file}{CSV location; NULLs fall back to the tracker,
-then the registry from [carbon_init()].}
+\item{output_dir, output_file}{Location for the CSV artifact; NULLs fall back
+to the tracker, then the registry from [carbon_init()]. If none resolves,
+the artifact is silently skipped.}
 }
 \value{
 list(result = <run() value>, log = <1-row tibble>).
 }
 \description{
-Resolves output defaults, runs `run()` inside a tracker start/stop window,
-and builds the standard one-row log tibble.
+Runs `run()` inside a CodeCarbon task window (`start_task()` /
+`stop_task()`), builds a rich one-row log tibble from the in-memory
+emissions object, and writes that row to a CSV as a best-effort artifact.
+}
+\details{
+The CSV is **not** load-bearing: all emissions data comes from
+`stop_task()` in memory, and a failed (or skipped) CSV write never affects
+the returned result or log.
 }
 \keyword{internal}

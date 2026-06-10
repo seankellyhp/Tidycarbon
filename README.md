@@ -60,7 +60,7 @@ tracker_stop(tracker)
 Emissions data is automatically logged to `emissions.csv` in the root project folder. Unless otherwise specified, emissions results will always be appended to this file.
 
 ### 2. Pipeline Steps (measure each step in a pipe)
-`carbon_step()` measures one step of a pipeline. After calling `carbon_init()`, drop it into any pipe by passing the step call directly --- the piped data is inserted as the call's first argument, and the session tracker is used automatically (no `tracker =` needed). Finish with `carbon_collect()` to pull the per-step log.
+`carbon_step()` measures one step of a pipeline. After calling `carbon_init()`, drop it into any pipe by passing the step call directly --- the piped data is inserted as the call's first argument, and the session tracker is used automatically (no `tracker =` needed). Finish with `carbon_collect()` to pull the per-step log. Each step's full metrics (CO2e, energy, water, power draw, hardware, location, ...) are returned in-memory and are also appended to `emissions.csv` as a best-effort artifact.
 
 ```r
 library(tidycarbon)
@@ -75,11 +75,11 @@ dfm_big <- tokens(big_corpus, remove_punct = TRUE, remove_symbols = TRUE, remove
   tidycarbon::carbon_step(tokens_ngrams(n = 1:3)) |>
   tidycarbon::carbon_step(dfm())
 
-carbon_collect(dfm_big)   # one row per measured step
+carbon_collect(dfm_big)   # one rich row per measured step
 ```
 
 ### 3. Whole-Pipeline Tracking (one window)
-`carbon_run()` measures an entire expression in a single tracking window (rather than step-by-step) and returns a list with the evaluated `result` and a one-row `log`. Like `carbon_step()`, it uses the session tracker registered by `carbon_init()` unless you pass `tracker =`.
+`carbon_run()` measures an entire expression in a single tracking window (rather than step-by-step) and returns a list with the evaluated `result` and a rich one-row `log`. Like `carbon_step()`, it uses the session tracker registered by `carbon_init()` unless you pass `tracker =`, and appends the measurement to `emissions.csv` as a best-effort artifact.
 
 ```r
 library(tidycarbon)
@@ -97,7 +97,7 @@ run <- carbon_run({
 })
 
 run$result   # the dfm
-run$log      # one row: emissions, energy, wall time
+run$log      # one rich row: CO2e, energy, water, power, hardware, wall time
 ```
 
 ### 4. Benchmarking (compare alternatives)
@@ -120,7 +120,7 @@ carbon_bench(
 - `carbon_step()`: Measure one pipeline step.
 - `carbon_collect()`: Collect the per-step emissions log from a pipeline result.
 - `carbon_run()`: Measure a whole expression in a single tracking window.
-- `carbon_read()`: Read the raw CodeCarbon emissions CSV as a tibble.
+- `carbon_read()`: Read the emissions CSV log as a tibble.
 - `carbon_bench()`: Benchmark and compare two or more expressions.
 - `carbon_track(fun, ..., tracker)`: Track single function.
 - `carbon_track_all(tasks, tracker)`: Batch track list of tasks.
@@ -136,7 +136,7 @@ See `vignettes` for more examples (in development).
 - **Tidy output**: Results + emissions in one tibble.
 - **Visual Dashboard**: Results are viewed from a Shiny Dashboard (in development)
 - **Modern reticulate**: Auto-imports `codecarbon`.
-- **Roadmap**: Tests, vignettes, website.
+- **Roadmap**: vignettes, website.
 
 ## Citation
 
