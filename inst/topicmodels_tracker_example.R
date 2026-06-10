@@ -15,11 +15,12 @@ df <- download("data_corpus_guardian")
 out_dir <- file.path(tempdir(), "tidycarbon_topicmodels")
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
-tracker <- carbon_init_pipe(
+# carbon_init() registers the tracker as the session default, so carbon_run()
+# below needs neither tracker= nor output_dir=.
+carbon_init(
   project_name = "topicmodels_guardian",
   measure_power_secs = 1,
   output_dir = out_dir,
-  output_file = "emissions.csv",
   offline = TRUE
 )
 
@@ -39,14 +40,13 @@ run <- carbon_run({
 
   LDA(dtm_all, k = k_topics, method = "Gibbs",
       control = list(seed = 42, iter = 100, burnin = 10))
-}, 
-tracker = tracker, label = "whole topicmodels pipeline", output_dir = out_dir)
+}, label = "whole topicmodels pipeline")
 
 print(run$log)
 
 # Top terms per topic
 terms(run$result, 10)
 
-# ---- Read entire CSV (raw CodeCarbon log) ----
-csv_all <- carbon_read(out_dir, "emissions.csv")
+# ---- Read entire CSV (the uniform emissions_r.csv artifact) ----
+csv_all <- carbon_read(out_dir)
 print(dplyr::glimpse(csv_all))

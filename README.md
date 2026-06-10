@@ -7,7 +7,7 @@
 <!--[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental) -->
 <!-- badges: end -->
 
-`tidycarbon` provides a minimal tidy R interface to [CodeCarbon](https://mlco2.github.io/codecarbon/), a Python library for tracking the carbon emissions and energy consumption (CPU, GPU, RAM) of computational processes. With just a few lines of code, measure the sustainability impact of your R functions, scripts, or pipelines, including detailed metrics like emissions, water use, hardware specs, and location-based carbon equivalency estimates.
+`tidycarbon` provides a minimal tidy R interface to [CodeCarbon](https://mlco2.github.io/codecarbon/), a Python library for tracking the carbon emissions and energy consumption (CPU, GPU, RAM) of computational processes. With just a few lines of code, measure the sustainability impact of your R functions, scripts, or pipelines, including estimated emissions, water use, and location-based carbon equivalency estimates.
 
 ## Motivations
 The motivation behind `tidycarbon` is to help R users, including computational researchers and practitioners: 
@@ -16,7 +16,7 @@ The motivation behind `tidycarbon` is to help R users, including computational r
 3. Align with the UN Sustainable Development Goals, namely [SDG 12 (Responsible Consumption and Production)](https://sdgs.un.org/goals/goal12#targets_and_indicators) and [SDG 13 (Climate Action)](https://sdgs.un.org/goals/goal13#overview). 
 4. Align with the EU AI Act (private-sector) responsibility of "reporting and documentation processes to improve AI systems resource performance, such as reducing the high-risk AI system’s consumption of energy and of other resources during its lifecycle" [(Article 40)](https://artificialintelligenceact.eu/article/40/).
 
-This package is very much in-development and will change often. 
+This package is in active development and will change often. 
 
 ## Installation
 
@@ -31,72 +31,101 @@ remotes::install_github("seankellyhp/Tidycarbon")
 
 ## Quickstart
 
-### Global Tracking (wrap any R code)
+### 1. Global Tracking (wrap any R code)
 Think of this like time benchmarking packages such as tictok or microbenchmark. You start the tracker and you stop the tracker. Everything in between remains the same. `tidycarbon` will measure your machine on the backend.
 
 ```r
 library(tidycarbon)
 
-# First, initiate the carbon tracking engine. 
-tracker <- carbon_init(project_name = "Fridays for Future")
+# First, initiate the carbon tracking engine.
+carbon_init(
+  project_name = "COMPTEXT26",
+  measure_power_secs = 1)
 
-# Second, start the tracker.
-tracker_start(tracker)
+# Second, start the tracker (the session default registered by carbon_init()).
+tracker_start()
 
 # Next, write your R code here (supports tidyverse, parallel, topicmodels, quanteda, ...everything)
 library(dplyr)
-iris %>%
-  select(Sepal.Length) %>%
-  pull() %>%
+iris |>
+  select(Sepal.Length) |>
+  pull() |>
   sum()
 
-# Finally, stop the tracker. 
-tracker_stop(tracker)
+# Finally, stop the tracker; returns the session as one rich emissions row.
+tracker_stop()
 ```
 
-Emissions data is automatically logged to `emissions.csv` in the root project folder. Unless otherwise specified, emissions results will always be appended to this file. 
+Emissions data is automatically logged to `emissions_r.csv` in the root project folder. All tracking functions (`tracker_start()`/`tracker_stop()`, `carbon_step()`, `carbon_run()`, `carbon_track()`) append rows with the same uniform schema to this one file. Unless otherwise specified, emissions results will always be appended to this file.
 
-### Task Tracking (functions with tibble output)
-This is a little different from a time benchmarking package. As one of the main use-cases of an emissions tracker is to measure the carbon footprint of heavy computational processes such as machine learning or language models, the carbon_track functions track the emissions for a specific function or list of functions.    
+### 2. Pipeline Steps (measure each step in a pipe)
+`carbon_step()` measures one step of a pipeline. After calling `carbon_init()`, drop it into any pipe by passing the step call directly --- the piped data is inserted as the call's first argument, and the session tracker is used automatically (no `tracker =` needed). Finish with `carbon_collect()` to pull the per-step log. Each step's full metrics (CO2e, energy, water, power draw, hardware, location, ...) are returned in-memory and are also appended to `emissions_r.csv` as a best-effort artifact.
+
+```r
+library(tidycarbon)
+library(quanteda)
+
+carbon_init(project_name = "COMPTEXT26", measure_power_secs = 1)
+
+dfm_big <- tokens(big_corpus, remove_punct = TRUE, remove_symbols = TRUE, remove_numbers = TRUE) |>
+  tokens_tolower() |>
+  tokens_remove(stopwords("en")) |>
+  tokens_wordstem() |>
+  tidycarbon::carbon_step(tokens_ngrams(n = 1:3)) |>
+  tidycarbon::carbon_step(dfm())
+
+carbon_collect(dfm_big)   # one rich row per measured step
+```
+
+### 3. Whole-Pipeline Tracking (one window)
+`carbon_run()` measures an entire expression in a single tracking window (rather than step-by-step) and returns a list with the evaluated `result` and a rich one-row `log`. Like `carbon_step()`, it uses the session tracker registered by `carbon_init()` unless you pass `tracker =`, and appends the measurement to `emissions_r.csv` as a best-effort artifact.
+
+```r
+library(tidycarbon)
+library(quanteda)
+
+carbon_init(project_name = "COMPTEXT26", measure_power_secs = 1)
+
+run <- carbon_run({
+  tokens(big_corpus, remove_punct = TRUE) |>
+    tokens_tolower() |>
+    tokens_remove(stopwords("en")) |>
+    tokens_wordstem() |>
+    tokens_ngrams(n = 1:3) |>
+    dfm()
+})
+
+run$result   # the dfm
+run$log      # one rich row: CO2e, energy, water, power, hardware, wall time
+```
+
+### 4. Benchmarking (compare alternatives)
+`carbon_bench()` runs two or more named expressions repeatedly and tracks emissions for each, then `autoplot()` visualizes the comparison.
 
 ```r
 library(tidycarbon)
 
-# First, initiate the carbon tracking engine. 
-tracker <- carbon_init(project_name = "Fridays for Future")
-
-# Next, define your function(s)
-square <- function(x) x^2
-
-# Then, track a single function
-carbon_track(square, x = 42, tracker = tracker)
-
-# Or, track multiple functions
-tasks <- list(
-  list(fun = square, args = list(x = 2)),
-  list(fun = square, args = list(x = 3))
-)
-carbon_track_all(tasks, tracker)
-
-# Finally, stop the tracker. 
-tracker_stop(tracker)
-```
-
-Returns a tidy tibble with task id, function results, metadata, emissions, energy, hardware, and geo data:
-
-```
-# A tibble: 1 × 35
-  project_name run_id ... emissions_total cpu_power ...
-  <chr>        <chr>  ...           <dbl>      <dbl> ...
+carbon_bench(
+  LLM  = rollama::query(...),
+  DICT = quanteda.sentiment::textstat_polarity(txt, dictionary = LSD2015),
+  times = 10) |>
+  autoplot(metric = "emissions_total")
 ```
 
 ## Key Functions
 
-- `carbon_init()`: Create a CodeCarbon tracker.
+- `carbon_init()`: Create a CodeCarbon tracker (registered as the session default).
 - `tracker_start()` / `tracker_stop()`: Global run tracking.
-- `carbon_track(fun, ..., tracker)`: Track single function.
-- `carbon_track_all(tasks, tracker)`: Batch track list of tasks.
+- `carbon_run()`: Measure a complete pipeline.
+- `carbon_step()`: Measure one pipeline step.
+- `carbon_bench()`: Benchmark and compare two or more expressions.
+- `carbon_collect()`: Collect the per-step emissions log from a pipeline result.
+- `carbon_read()`: Read the emissions CSV log as a tibble.
 - `carbon_view()`: Starts a Shiny dashboard at localhost (in development)
+
+## Internal Functions
+- `carbon_track(fun, ...)`: Track a single function call (uses the session tracker).
+- `carbon_track_all(tasks)`: Batch track a list of tasks.
 
 ## Examples
 
@@ -108,7 +137,7 @@ See `vignettes` for more examples (in development).
 - **Tidy output**: Results + emissions in one tibble.
 - **Visual Dashboard**: Results are viewed from a Shiny Dashboard (in development)
 - **Modern reticulate**: Auto-imports `codecarbon`.
-- **Roadmap**: Tests, vignettes, website, pipe operator.
+- **Roadmap**: vignettes, website.
 
 ## Citation
 

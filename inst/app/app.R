@@ -321,20 +321,27 @@ server <- function(input, output, session) {
 
     csv_files <- list.files(
       path = app_dir,
-      pattern = "^emissions\\.csv$",
+      pattern = "^emissions(_r)?\\.csv$",
       recursive = TRUE,
       full.names = TRUE
     )
 
     validate(
       need(length(csv_files) > 0,
-           "emissions.csv not found anywhere in the project folder.")
+           "emissions_r.csv (or emissions.csv) not found anywhere in the project folder.")
     )
 
     # If multiple, take the most recently modified
     file_path <- csv_files[which.max(file.info(csv_files)$mtime)]
 
     df <- read.csv(file_path, stringsAsFactors = FALSE)
+
+    # tidycarbon's uniform schema names the CO2e column emissions_total;
+    # CodeCarbon's native schema (legacy files) names it emissions. The app
+    # uses the native name downstream, so alias when needed.
+    if (!"emissions" %in% names(df) && "emissions_total" %in% names(df)) {
+      df$emissions <- df$emissions_total
+    }
 
     # Robust timestamp parsing (won't break if format varies slightly)
     if ("timestamp" %in% names(df)) {

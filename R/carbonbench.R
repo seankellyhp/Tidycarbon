@@ -1,27 +1,33 @@
-#' Benchmark carbon emissions of two functions
+#' Benchmark carbon emissions of two or more functions
 #'
-#' Runs two functions repeatedly and tracks emissions for each run, similar in
-#' spirit to [microbenchmark::microbenchmark()]. The returned tibble carries
-#' class `"carbonbench"` and can be passed to [ggplot2::autoplot()].
+#' Runs two or more functions repeatedly and tracks emissions for each run,
+#' similar in spirit to [microbenchmark::microbenchmark()]. The returned tibble
+#' carries class `"carbonbench"` and can be passed to [ggplot2::autoplot()],
+#' e.g. `carbon_bench(...) |> autoplot(metric = "emissions_total")`.
 #'
-#' @param ... Two named expressions or functions to benchmark. Expressions are
-#'   accepted unevaluated (like `microbenchmark::microbenchmark()`), so piped
-#'   calls work, e.g. `v4 = as.tokens_xptr(xtoks) |> tokens_ngrams()`.
-#'   Functions are called with no arguments.
+#' @param ... Two or more named expressions or functions to benchmark.
+#'   Expressions are accepted unevaluated (like
+#'   `microbenchmark::microbenchmark()`), so piped calls work, e.g.
+#'   `v4 = as.tokens_xptr(xtoks) |> tokens_ngrams()`. Functions are called with
+#'   no arguments.
 #' @param times Number of times to run each function.
-#' @param tracker Optional codecarbon tracker. If `NULL`, one is created and
-#'   stopped internally.
+#' @param tracker Optional codecarbon tracker. If `NULL`, a throwaway tracker is
+#'   created and stopped internally (the session default tracker registered by
+#'   [carbon_init()] is left untouched).
 #' @param project_name Project name used when creating an internal tracker.
+#' @param measure_power_secs Sampling interval (seconds) for the internal
+#'   tracker.
+#' @param warmup Logical; if `TRUE`, run each expression once before timing.
 #' @return A tibble of class `carbonbench` with one row per run.
 #' @export
-carbonbench <- function(..., times = 10, tracker = NULL,
+carbon_bench <- function(..., times = 10, tracker = NULL,
                         project_name = "carbonbench",
                         measure_power_secs = .01,
                         warmup = TRUE) {
   exprs <- as.list(substitute(list(...)))[-1]
   env <- parent.frame()
-  if (length(exprs) != 2 || is.null(names(exprs)) || any(names(exprs) == "")) {
-    stop("carbonbench requires exactly two named expressions, e.g. a = expr1, b = expr2")
+  if (length(exprs) < 2 || is.null(names(exprs)) || any(names(exprs) == "")) {
+    stop("carbon_bench() requires two or more named expressions, e.g. a = expr1, b = expr2")
   }
 
   run_one <- function(nm) {
@@ -31,10 +37,16 @@ carbonbench <- function(..., times = 10, tracker = NULL,
 
   owns_tracker <- is.null(tracker)
   if (owns_tracker) {
-    tracker <- carbon_init(project_name = project_name,
-                           measure_power_secs = measure_power_secs)
-    tracker_start(tracker)
-    on.exit(tracker_stop(tracker), add = TRUE)
+    tracker <- carbon_new_tracker(project_name = project_name,
+                                  measure_power_secs = measure_power_secs,
+                                  tracking_mode = "machine",
+                                  output_dir = tempdir(),
+                                  output_file = "emissions_r.csv",
+                                  offline = TRUE)
+    # Raw start/stop, not tracker_start()/tracker_stop(): the throwaway
+    # benchmark session must not log a "session" row to the artifact.
+    tracker$start()
+    on.exit(tracker$stop(), add = TRUE)
   }
 
   if (isTRUE(warmup)) {
@@ -81,8 +93,15 @@ carbonbench <- function(..., times = 10, tracker = NULL,
   structure(rows, class = c("carbonbench", class(rows)))
 }
 
+#' Plot a carbonbench result
+#'
+#' @param object A `carbonbench` tibble returned by [carbon_bench()].
+#' @param metric Which metric column to plot.
+#' @param ... Unused; required by the [ggplot2::autoplot()] generic.
+#' @return A ggplot object.
 #' @importFrom ggplot2 autoplot
 #' @importFrom rlang .data
+#' @method autoplot carbonbench
 #' @export
 autoplot.carbonbench <- function(object, metric = c("duration", "emissions_total",
                                                     "energy_consumed"), ...) {
