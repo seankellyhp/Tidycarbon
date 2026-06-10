@@ -1,60 +1,34 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>/404.html</loc>
-  </url>
-  <url>
-    <loc>/authors.html</loc>
-  </url>
-  <url>
-    <loc>/index.html</loc>
-  </url>
-  <url>
-    <loc>/reference/carbonbench.html</loc>
-  </url>
-  <url>
-    <loc>/reference/carbon_collect.html</loc>
-  </url>
-  <url>
-    <loc>/reference/carbon_init.html</loc>
-  </url>
-  <url>
-    <loc>/reference/carbon_init_pipe.html</loc>
-  </url>
-  <url>
-    <loc>/reference/carbon_last_row.html</loc>
-  </url>
-  <url>
-    <loc>/reference/carbon_read.html</loc>
-  </url>
-  <url>
-    <loc>/reference/carbon_run.html</loc>
-  </url>
-  <url>
-    <loc>/reference/carbon_step.html</loc>
-  </url>
-  <url>
-    <loc>/reference/carbon_track.html</loc>
-  </url>
-  <url>
-    <loc>/reference/carbon_track_all.html</loc>
-  </url>
-  <url>
-    <loc>/reference/carbon_view.html</loc>
-  </url>
-  <url>
-    <loc>/reference/grapes-or-or-grapes.html</loc>
-  </url>
-  <url>
-    <loc>/reference/index.html</loc>
-  </url>
-  <url>
-    <loc>/reference/py_has_kwarg.html</loc>
-  </url>
-  <url>
-    <loc>/reference/tracker_start.html</loc>
-  </url>
-  <url>
-    <loc>/reference/tracker_stop.html</loc>
-  </url>
+<urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/404.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/CLAUDE.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/articles/carbon-view-app.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/articles/index.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/authors.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/index.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/autoplot.carbonbench.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_bench.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_collect.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_default_output_dir.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_default_output_file.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_default_tracker.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_emissions_row.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_init.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_init_pipe.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_last_row.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_measure.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_new_tracker.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_read.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_run.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_step.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_track.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_track_all.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_view.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbon_write_artifact.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/carbonbench.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/grapes-or-or-grapes.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/index.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/py_has_kwarg.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/tracker_start.html</loc></url>
+<url><loc>https://seankellyhp.github.io/Tidycarbon/reference/tracker_stop.html</loc></url>
 </urlset>
+

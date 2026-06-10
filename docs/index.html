@@ -5,77 +5,69 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<meta name="description" content="With three lines of code, track and compare the energy, CPU and GPU use to estimate sustainablity values including carbon emissions and water use of R functions and scripts and carbon emissions of you ">
 <title>Tidy R Wrapper for Python's CodeCarbon Emissions Tracker • tidycarbon</title>
-<!-- favicons --><link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-<link rel="apple-touch-icon" type="image/png" sizes="180x180" href="apple-touch-icon.png">
-<link rel="apple-touch-icon" type="image/png" sizes="120x120" href="apple-touch-icon-120x120.png">
-<link rel="apple-touch-icon" type="image/png" sizes="76x76" href="apple-touch-icon-76x76.png">
-<link rel="apple-touch-icon" type="image/png" sizes="60x60" href="apple-touch-icon-60x60.png">
+<!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
+<link rel="icon" type="”image/svg+xml”" href="favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" sizes="any" href="favicon.ico">
+<link rel="manifest" href="site.webmanifest">
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<style>body{font-size:1rem;line-height:1.65}.navbar{border-bottom:1px solid #e9ecef;box-shadow:0 2px 10px rgba(0,0,0,.04)}.navbar-brand{font-weight:600}.navbar-brand img{height:28px;width:auto;margin-right:.5rem}.template-home main h2{margin-top:1.75rem}.template-home main p:first-child{font-size:1.03rem}.template-home pre{border-radius:8px}aside h2{font-size:1rem;letter-spacing:.01em}</style>
-<script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><!-- Font Awesome icons --><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" integrity="sha256-mmgLkCYLUQbXn0B1SRqzHar6dCnv9oZFPEC1g1cwlkk=" crossorigin="anonymous">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/v4-shims.min.css" integrity="sha256-wZjR52fzng1pJHwx4aV2AO3yyTOXrcDW7jBpJtTwVxw=" crossorigin="anonymous">
-<!-- bootstrap-toc --><script src="https://cdn.rawgit.com/afeld/bootstrap-toc/v1.0.1/dist/bootstrap-toc.min.js"></script><!-- headroom.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/headroom.min.js" integrity="sha256-AsUX4SJE1+yuDu5+mAVzJbuYNPHj/WroHuZ8Ir/CkE0=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/headroom/0.11.0/jQuery.headroom.min.js" integrity="sha256-ZX/yNShbjqsohH1k95liqY9Gd8uOiE1S4vZc+9KQ1K4=" crossorigin="anonymous"></script><!-- clipboard.js --><script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.6/clipboard.min.js" integrity="sha256-inc5kl9MA1hkeYUt+EC3BhlIgyp/2jDIyBLS6k3UxPI=" crossorigin="anonymous"></script><!-- search --><script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.4.6/fuse.js" integrity="sha512-zv6Ywkjyktsohkbp9bb45V6tEMoWhzFzXis+LrMehmJZZSys19Yxf1dopHx7WzIKxr5tK2dVcYmaCk2uqdjF4A==" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/autocomplete.js/0.38.0/autocomplete.jquery.min.js" integrity="sha512-GU9ayf+66Xx2TmpxqJpliWbT5PiGYxpaG8rfnBEk1LL8l1KGkRShhngwdXK1UgqhAzWpZHSiYPc09/NwDQIGyg==" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mark.js/8.11.1/mark.min.js" integrity="sha512-5CYOlHXGh6QpOFA/TeTylKLWfB3ftPsde7AnmhuitiTX4K5SqCLBeKro6sPS8ilsz1Q4NRx3v8Ko2IBiszzdww==" crossorigin="anonymous"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Tidy R Wrapper for Python's CodeCarbon Emissions Tracker">
-<meta property="og:description" content="With three lines of code, track and compare the energy, CPU and GPU use to estimate sustainablity values including carbon emissions and water use of R functions and scripts and carbon emissions of you ">
-<meta property="og:image" content="/logo.png">
-<!-- mathjax --><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js" integrity="sha256-nvJJv9wWKEm88qvoQl9ekL2J+k/RWIsaSScxxlsrv8k=" crossorigin="anonymous"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/config/TeX-AMS-MML_HTMLorMML.js" integrity="sha256-84DKXVJXs0/F8OTMzX4UR909+jtl4G7SPypPavF+GfA=" crossorigin="anonymous"></script><!--[if lt IE 9]>
-<script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
-<script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
-<![endif]-->
+<script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
+<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><link href="extra.css" rel="stylesheet">
+<meta property="og:title" content="Tidy R Wrapper for Python's CodeCarbon Emissions Tracker">
+<meta name="description" content="With three lines of code, track and compare the energy, CPU and GPU use to estimate sustainability values including carbon emissions and water use of R functions, scripts, and pipelines.">
+<meta property="og:description" content="With three lines of code, track and compare the energy, CPU and GPU use to estimate sustainability values including carbon emissions and water use of R functions, scripts, and pipelines.">
+<meta property="og:image" content="https://seankellyhp.github.io/Tidycarbon/logo.png">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
-    
 
-    <nav class="navbar fixed-top navbar-light navbar-expand-lg bg-light"><div class="container">
-    
-    <a class="navbar-brand me-2 d-flex align-items-center" href="index.html"><img src="logo.png" alt="tidycarbon logo"><span>tidycarbon</span></a>
+
+    <nav class="navbar navbar-expand-lg fixed-top bg-primary" data-bs-theme="dark" aria-label="Site navigation"><div class="container">
+
+    <a class="navbar-brand me-2" href="index.html">tidycarbon</a>
 
     <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
 
-    
+
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
-<li class="nav-item">
-  <a class="nav-link" href="reference/index.html">Reference</a>
-</li>
+<li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
-  <a class="nav-link dropdown-toggle" href="#" id="articles-menu" role="button" data-bs-toggle="dropdown" aria-expanded="false">Articles</a>
-  <ul class="dropdown-menu" aria-labelledby="articles-menu">
-    <li><a class="dropdown-item" href="articles/carbon-view-app.html">Carbon View App</a></li>
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
+<li><a class="dropdown-item" href="articles/carbon-view-app.html">Carbon View App</a></li>
     <li><a class="dropdown-item" href="index.html#quickstart">Quickstart</a></li>
     <li><a class="dropdown-item" href="index.html#examples">Examples</a></li>
   </ul>
 </li>
-<li class="nav-item">
-  <a class="nav-link" href="https://github.com/seankellyhp/Tidycarbon/releases">Changelog</a>
-</li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/seankellyhp/Tidycarbon/releases">Changelog</a></li>
       </ul>
-<form class="form-inline my-2 my-lg-0" role="search">
-        <input type="search" class="form-control me-sm-2" aria-label="Toggle navigation" name="search-input" data-search-index="search.json" id="search-input" placeholder="Search for" autocomplete="off">
-</form>
-
-      <ul class="navbar-nav"><li class="nav-item"><a class="nav-link" href="https://github.com/seankellyhp/Tidycarbon" aria-label="GitHub"><span class="fab fa-github fa-lg"></span></a></li></ul>
+<ul class="navbar-nav">
+<li class="nav-item"><form class="form-inline" role="search">
+ <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="search.json">
+</form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/seankellyhp/Tidycarbon"><span class="fa fab fa-github fa-lg"></span></a></li>
+      </ul>
 </div>
 
-    
+
   </div>
 </nav><div class="container template-home">
 <div class="row">
-  <main id="main" class="col-md-9"><p class="home-hero-logo"><img src="logo.png" alt="tidycarbon logo" style="max-width: 180px; height: auto;"></p><p><code>tidycarbon</code> provides a minimal tidy R interface to <a href="https://mlco2.github.io/codecarbon/" class="external-link">CodeCarbon</a>, a Python library for tracking the carbon emissions and energy consumption (CPU, GPU, RAM) of computational processes. With just a few lines of code, measure the sustainability impact of your R functions, scripts, or pipelines, including detailed metrics like emissions, water use, hardware specs, and location-based carbon equivalency estimates.</p>
+  <main id="main" class="col-md-9"><p><code>tidycarbon</code> provides a minimal tidy R interface to <a href="https://mlco2.github.io/codecarbon/" class="external-link">CodeCarbon</a>, a Python library for tracking the carbon emissions and energy consumption (CPU, GPU, RAM) of computational processes. With just a few lines of code, measure the sustainability impact of your R functions, scripts, or pipelines, including estimated emissions, water use, and location-based carbon equivalency estimates.</p>
 <div class="section level2">
 <h2 id="motivations">Motivations<a class="anchor" aria-label="anchor" href="#motivations"></a>
 </h2>
 <p>The motivation behind <code>tidycarbon</code> is to help R users, including computational researchers and practitioners: 1. Reduce the environmental impact of big data analyses and AI systems that disproportionately affect disadvantaged people and communities, particularly in the Global South, <a href="https://osf.io/preprints/socarxiv/vwb5h_v1" class="external-link">learn more</a>.<br>
 2. Reduce reliance of academic researchers on third-party analytics services such as ChatGPT or Google Cloud in favor of local/private hardware and open source tools such as <a href="https://jbgruber.github.io/rollama/" class="external-link">Ollama</a>, <a href="https://www.nature.com/articles/d41586-023-01295-4" class="external-link">learn more</a>. 3. Align with the UN Sustainable Development Goals, namely <a href="https://sdgs.un.org/goals/goal12#targets_and_indicators" class="external-link">SDG 12 (Responsible Consumption and Production)</a> and <a href="https://sdgs.un.org/goals/goal13#overview" class="external-link">SDG 13 (Climate Action)</a>. 4. Align with the EU AI Act (private-sector) responsibility of “reporting and documentation processes to improve AI systems resource performance, such as reducing the high-risk AI system’s consumption of energy and of other resources during its lifecycle” <a href="https://artificialintelligenceact.eu/article/40/" class="external-link">(Article 40)</a>.</p>
-<p>This package is very much in-development and will change often.</p>
+<p>This package is in active development and will change often.</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -90,58 +82,84 @@
 <h2 id="quickstart">Quickstart<a class="anchor" aria-label="anchor" href="#quickstart"></a>
 </h2>
 <div class="section level3">
-<h3 id="global-tracking-wrap-any-r-code">Global Tracking (wrap any R code)<a class="anchor" aria-label="anchor" href="#global-tracking-wrap-any-r-code"></a>
+<h3 id="id_1-global-tracking-wrap-any-r-code">1. Global Tracking (wrap any R code)<a class="anchor" aria-label="anchor" href="#id_1-global-tracking-wrap-any-r-code"></a>
 </h3>
 <p>Think of this like time benchmarking packages such as tictok or microbenchmark. You start the tracker and you stop the tracker. Everything in between remains the same. <code>tidycarbon</code> will measure your machine on the backend.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">tidycarbon</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># First, initiate the carbon tracking engine. </span></span>
-<span><span class="va">tracker</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/carbon_init.html">carbon_init</a></span><span class="op">(</span>project_name <span class="op">=</span> <span class="st">"Fridays for Future"</span><span class="op">)</span></span>
+<span><span class="co"># First, initiate the carbon tracking engine.</span></span>
+<span><span class="fu"><a href="reference/carbon_init.html">carbon_init</a></span><span class="op">(</span></span>
+<span>  project_name <span class="op">=</span> <span class="st">"COMPTEXT26"</span>,</span>
+<span>  measure_power_secs <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Second, start the tracker.</span></span>
-<span><span class="fu"><a href="reference/tracker_start.html">tracker_start</a></span><span class="op">(</span><span class="va">tracker</span><span class="op">)</span></span>
+<span><span class="co"># Second, start the tracker (the session default registered by carbon_init()).</span></span>
+<span><span class="fu"><a href="reference/tracker_start.html">tracker_start</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Next, write your R code here (supports tidyverse, parallel, topicmodels, quanteda, ...everything)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
-<span><span class="va">iris</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">Sepal.Length</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/pull.html" class="external-link">pull</a></span><span class="op">(</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span><span class="va">iris</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">Sepal.Length</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/pull.html" class="external-link">pull</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Finally, stop the tracker. </span></span>
-<span><span class="fu"><a href="reference/tracker_stop.html">tracker_stop</a></span><span class="op">(</span><span class="va">tracker</span><span class="op">)</span></span></code></pre></div>
-<p>Emissions data is automatically logged to <code>emissions.csv</code> in the root project folder. Unless otherwise specified, emissions results will always be appended to this file.</p>
+<span><span class="co"># Finally, stop the tracker; returns the session as one rich emissions row.</span></span>
+<span><span class="fu"><a href="reference/tracker_stop.html">tracker_stop</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>Emissions data is automatically logged to <code>emissions_r.csv</code> in the root project folder. All tracking functions (<code><a href="reference/tracker_start.html">tracker_start()</a></code>/<code><a href="reference/tracker_stop.html">tracker_stop()</a></code>, <code><a href="reference/carbon_step.html">carbon_step()</a></code>, <code><a href="reference/carbon_run.html">carbon_run()</a></code>, <code><a href="reference/carbon_track.html">carbon_track()</a></code>) append rows with the same uniform schema to this one file. Unless otherwise specified, emissions results will always be appended to this file.</p>
 </div>
 <div class="section level3">
-<h3 id="task-tracking-functions-with-tibble-output">Task Tracking (functions with tibble output)<a class="anchor" aria-label="anchor" href="#task-tracking-functions-with-tibble-output"></a>
+<h3 id="id_2-pipeline-steps-measure-each-step-in-a-pipe">2. Pipeline Steps (measure each step in a pipe)<a class="anchor" aria-label="anchor" href="#id_2-pipeline-steps-measure-each-step-in-a-pipe"></a>
 </h3>
-<p>This is a little different from a time benchmarking package. As one of the main use-cases of an emissions tracker is to measure the carbon footprint of heavy computational processes such as machine learning or language models, the carbon_track functions track the emissions for a specific function or list of functions.</p>
+<p><code><a href="reference/carbon_step.html">carbon_step()</a></code> measures one step of a pipeline. After calling <code><a href="reference/carbon_init.html">carbon_init()</a></code>, drop it into any pipe by passing the step call directly — the piped data is inserted as the call’s first argument, and the session tracker is used automatically (no <code>tracker =</code> needed). Finish with <code><a href="reference/carbon_collect.html">carbon_collect()</a></code> to pull the per-step log. Each step’s full metrics (CO2e, energy, water, power draw, hardware, location, …) are returned in-memory and are also appended to <code>emissions_r.csv</code> as a best-effort artifact.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">tidycarbon</span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://quanteda.io" class="external-link">quanteda</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># First, initiate the carbon tracking engine. </span></span>
-<span><span class="va">tracker</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/carbon_init.html">carbon_init</a></span><span class="op">(</span>project_name <span class="op">=</span> <span class="st">"Fridays for Future"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/carbon_init.html">carbon_init</a></span><span class="op">(</span>project_name <span class="op">=</span> <span class="st">"COMPTEXT26"</span>, measure_power_secs <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Next, define your function(s)</span></span>
-<span><span class="va">square</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="va">x</span><span class="op">^</span><span class="fl">2</span></span>
+<span><span class="va">dfm_big</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://quanteda.io/reference/tokens.html" class="external-link">tokens</a></span><span class="op">(</span><span class="va">big_corpus</span>, remove_punct <span class="op">=</span> <span class="cn">TRUE</span>, remove_symbols <span class="op">=</span> <span class="cn">TRUE</span>, remove_numbers <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://quanteda.io/reference/tokens_tolower.html" class="external-link">tokens_tolower</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://quanteda.io/reference/tokens_select.html" class="external-link">tokens_remove</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/stopwords/man/stopwords.html" class="external-link">stopwords</a></span><span class="op">(</span><span class="st">"en"</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://quanteda.io/reference/tokens_wordstem.html" class="external-link">tokens_wordstem</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">tidycarbon</span><span class="fu">::</span><span class="fu"><a href="reference/carbon_step.html">carbon_step</a></span><span class="op">(</span><span class="fu"><a href="https://quanteda.io/reference/tokens_ngrams.html" class="external-link">tokens_ngrams</a></span><span class="op">(</span>n <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">tidycarbon</span><span class="fu">::</span><span class="fu"><a href="reference/carbon_step.html">carbon_step</a></span><span class="op">(</span><span class="fu"><a href="https://quanteda.io/reference/dfm.html" class="external-link">dfm</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Then, track a single function</span></span>
-<span><span class="fu"><a href="reference/carbon_track.html">carbon_track</a></span><span class="op">(</span><span class="va">square</span>, x <span class="op">=</span> <span class="fl">42</span>, tracker <span class="op">=</span> <span class="va">tracker</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/carbon_collect.html">carbon_collect</a></span><span class="op">(</span><span class="va">dfm_big</span><span class="op">)</span>   <span class="co"># one rich row per measured step</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="id_3-whole-pipeline-tracking-one-window">3. Whole-Pipeline Tracking (one window)<a class="anchor" aria-label="anchor" href="#id_3-whole-pipeline-tracking-one-window"></a>
+</h3>
+<p><code><a href="reference/carbon_run.html">carbon_run()</a></code> measures an entire expression in a single tracking window (rather than step-by-step) and returns a list with the evaluated <code>result</code> and a rich one-row <code>log</code>. Like <code><a href="reference/carbon_step.html">carbon_step()</a></code>, it uses the session tracker registered by <code><a href="reference/carbon_init.html">carbon_init()</a></code> unless you pass <code>tracker =</code>, and appends the measurement to <code>emissions_r.csv</code> as a best-effort artifact.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">tidycarbon</span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://quanteda.io" class="external-link">quanteda</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Or, track multiple functions</span></span>
-<span><span class="va">tasks</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>fun <span class="op">=</span> <span class="va">square</span>, args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">2</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>fun <span class="op">=</span> <span class="va">square</span>, args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/carbon_track_all.html">carbon_track_all</a></span><span class="op">(</span><span class="va">tasks</span>, <span class="va">tracker</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/carbon_init.html">carbon_init</a></span><span class="op">(</span>project_name <span class="op">=</span> <span class="st">"COMPTEXT26"</span>, measure_power_secs <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Finally, stop the tracker. </span></span>
-<span><span class="fu"><a href="reference/tracker_stop.html">tracker_stop</a></span><span class="op">(</span><span class="va">tracker</span><span class="op">)</span></span></code></pre></div>
-<p>Returns a tidy tibble with task id, function results, metadata, emissions, energy, hardware, and geo data:</p>
-<pre><code># A tibble: 1 × 35
-  project_name run_id ... emissions_total cpu_power ...
-  &lt;chr&gt;        &lt;chr&gt;  ...           &lt;dbl&gt;      &lt;dbl&gt; ...</code></pre>
+<span><span class="va">run</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/carbon_run.html">carbon_run</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://quanteda.io/reference/tokens.html" class="external-link">tokens</a></span><span class="op">(</span><span class="va">big_corpus</span>, remove_punct <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://quanteda.io/reference/tokens_tolower.html" class="external-link">tokens_tolower</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://quanteda.io/reference/tokens_select.html" class="external-link">tokens_remove</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/stopwords/man/stopwords.html" class="external-link">stopwords</a></span><span class="op">(</span><span class="st">"en"</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://quanteda.io/reference/tokens_wordstem.html" class="external-link">tokens_wordstem</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://quanteda.io/reference/tokens_ngrams.html" class="external-link">tokens_ngrams</a></span><span class="op">(</span>n <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://quanteda.io/reference/dfm.html" class="external-link">dfm</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="op">}</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">run</span><span class="op">$</span><span class="va">result</span>   <span class="co"># the dfm</span></span>
+<span><span class="va">run</span><span class="op">$</span><span class="va">log</span>      <span class="co"># one rich row: CO2e, energy, water, power, hardware, wall time</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="id_4-benchmarking-compare-alternatives">4. Benchmarking (compare alternatives)<a class="anchor" aria-label="anchor" href="#id_4-benchmarking-compare-alternatives"></a>
+</h3>
+<p><code><a href="reference/carbon_bench.html">carbon_bench()</a></code> runs two or more named expressions repeatedly and tracks emissions for each, then <code>autoplot()</code> visualizes the comparison.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">tidycarbon</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/carbon_bench.html">carbon_bench</a></span><span class="op">(</span></span>
+<span>  LLM  <span class="op">=</span> <span class="fu">rollama</span><span class="fu">::</span><span class="fu">query</span><span class="op">(</span><span class="va">...</span><span class="op">)</span>,</span>
+<span>  DICT <span class="op">=</span> <span class="fu">quanteda.sentiment</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/quanteda.sentiment/man/textstat_polarity.html" class="external-link">textstat_polarity</a></span><span class="op">(</span><span class="va">txt</span>, dictionary <span class="op">=</span> <span class="va">LSD2015</span><span class="op">)</span>,</span>
+<span>  times <span class="op">=</span> <span class="fl">10</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">autoplot</span><span class="op">(</span>metric <span class="op">=</span> <span class="st">"emissions_total"</span><span class="op">)</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -149,15 +167,31 @@
 </h2>
 <ul>
 <li>
-<code><a href="reference/carbon_init.html">carbon_init()</a></code>: Create a CodeCarbon tracker.</li>
+<code><a href="reference/carbon_init.html">carbon_init()</a></code>: Create a CodeCarbon tracker (registered as the session default).</li>
 <li>
 <code><a href="reference/tracker_start.html">tracker_start()</a></code> / <code><a href="reference/tracker_stop.html">tracker_stop()</a></code>: Global run tracking.</li>
 <li>
-<code>carbon_track(fun, ..., tracker)</code>: Track single function.</li>
+<code><a href="reference/carbon_run.html">carbon_run()</a></code>: Measure a complete pipeline.</li>
 <li>
-<code>carbon_track_all(tasks, tracker)</code>: Batch track list of tasks.</li>
+<code><a href="reference/carbon_step.html">carbon_step()</a></code>: Measure one pipeline step.</li>
+<li>
+<code><a href="reference/carbon_bench.html">carbon_bench()</a></code>: Benchmark and compare two or more expressions.</li>
+<li>
+<code><a href="reference/carbon_collect.html">carbon_collect()</a></code>: Collect the per-step emissions log from a pipeline result.</li>
+<li>
+<code><a href="reference/carbon_read.html">carbon_read()</a></code>: Read the emissions CSV log as a tibble.</li>
 <li>
 <code><a href="reference/carbon_view.html">carbon_view()</a></code>: Starts a Shiny dashboard at localhost (in development)</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="internal-functions">Internal Functions<a class="anchor" aria-label="anchor" href="#internal-functions"></a>
+</h2>
+<ul>
+<li>
+<code>carbon_track(fun, ...)</code>: Track a single function call (uses the session tracker).</li>
+<li>
+<code>carbon_track_all(tasks)</code>: Batch track a list of tasks.</li>
 </ul>
 </div>
 <div class="section level2">
@@ -178,13 +212,15 @@
 <li>
 <strong>Modern reticulate</strong>: Auto-imports <code>codecarbon</code>.</li>
 <li>
-<strong>Roadmap</strong>: Tests, vignettes, website, pipe operator.</li>
+<strong>Roadmap</strong>: vignettes, website.</li>
 </ul>
 </div>
 <div class="section level2">
 <h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
 </h2>
 <p>Palicki, S., &amp; Bravo, I. (2025). tidycarbon: Tidy R Wrapper for the CodeCarbon Emissions Tracker. <a href="https://github.com/seankellyhp/Tidycarbon" class="external-link uri">https://github.com/seankellyhp/Tidycarbon</a></p>
+<p>&lt;!– ## Contributing</p>
+<p>Contributions welcome! See <a href="https://github.com/seankellyhp/Tidycarbon/blob/main/CONTRIBUTING.md" class="external-link">CONTRIBUTING.md</a> (create if missing). –!&gt;</p>
 </div>
 
   </main><aside class="col-md-3"><div class="license">
@@ -205,8 +241,8 @@
 <div class="developers">
 <h2 data-toc-skip>Developers</h2>
 <ul class="list-unstyled">
-<li>Sean Palicki <br><small class="roles"> Author, maintainer </small>  </li>
-<li>Isaac Bravo <br><small class="roles"> Author </small>  </li>
+<li>Sean Palicki <br><small class="roles"> Author, maintainer </small>   </li>
+<li>Isaac Bravo <br><small class="roles"> Author </small>   </li>
 </ul>
 </div>
 
@@ -217,29 +253,19 @@
 
 
     <footer><div class="pkgdown-footer-left">
-  <p></p>
-<p>Developed by Sean Palicki, Isaac Bravo.</p>
+  <p>Developed by Sean Palicki, Isaac Bravo.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p></p>
-<p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.0.6.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer>
 </div>
 
-  
 
-  
+
+
 
   </body>
 </html>
-
-
-
-
-
-
-
-
