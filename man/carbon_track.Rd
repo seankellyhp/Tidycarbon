@@ -4,7 +4,7 @@
 \alias{carbon_track}
 \title{Track emissions for a single function}
 \usage{
-carbon_track(fun, ..., tracker, task_id = uuid::UUIDgenerate())
+carbon_track(fun, ..., tracker, task_id = uuid::UUIDgenerate(), chat = NULL)
 }
 \arguments{
 \item{fun}{Arbitrary function}
@@ -14,6 +14,11 @@ carbon_track(fun, ..., tracker, task_id = uuid::UUIDgenerate())
 \item{tracker}{codecarbon EmissionsTracker object}
 
 \item{task_id}{Unique ID of function task}
+
+\item{chat}{Optional ellmer `Chat` used inside `fun`. The requests it makes
+while `fun` runs are estimated with [carbon_provider()] and returned in a
+`provider` list-column - a separate scope from the CodeCarbon columns,
+never to be added to them.}
 }
 \value{
 A tibble of function results and emissions

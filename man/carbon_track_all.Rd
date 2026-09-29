@@ -7,7 +7,8 @@
 carbon_track_all(tasks, tracker)
 }
 \arguments{
-\item{tasks}{list of functions and arguments like list(fun = function, args = list(a = 1, b = 2))}
+\item{tasks}{list of functions and arguments like list(fun = function, args = list(a = 1, b = 2)).
+A task may also carry `chat`, an ellmer `Chat` passed to [carbon_track()].}
 
 \item{tracker}{codecarbon EmissionsTracker object}
 }

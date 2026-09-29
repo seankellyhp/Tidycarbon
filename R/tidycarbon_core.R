@@ -60,20 +60,30 @@ tracker_start <- function(tracker) {
 #' @param ... Function inputs
 #' @param tracker codecarbon EmissionsTracker object
 #' @param task_id Unique ID of function task
+#' @param chat Optional ellmer `Chat` used inside `fun`. The requests it makes
+#'   while `fun` runs are estimated with [carbon_provider()] and returned in a
+#'   `provider` list-column - a separate scope from the CodeCarbon columns,
+#'   never to be added to them.
 #' @return A tibble of function results and emissions
 #' @export
-carbon_track <- function(fun, ..., tracker, task_id = uuid::UUIDgenerate()) { # carbon_track()
+carbon_track <- function(fun, ..., tracker, task_id = uuid::UUIDgenerate(),
+                         chat = NULL) { # carbon_track()
   stopifnot(is.function(fun))
 
+  turns_before <- chat_turn_count(chat)
+
   tracker$start_task()
+  t0 <- Sys.time()
 
   # Run user function
   result <- fun(...)
 
+  wall_time_sec <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
+
   # stop_task() RETURNS the emissions data
   emissions <- tracker$stop_task()
 
-  tibble::tibble(
+  out <- tibble::tibble(
 
     # Metadata
     project_name    = emissions$project_name,
@@ -117,11 +127,17 @@ carbon_track <- function(fun, ..., tracker, task_id = uuid::UUIDgenerate()) { # 
     pue                 = emissions$pue,
     wue                 = emissions$wue
   )
+
+  if (!is.null(chat)) {
+    out$provider <- list(provider_for_chat(chat, turns_before, wall_time_sec))
+  }
+  out
 }
 
 #' Track Emissions for a list of functions
 #'
-#' @param tasks list of functions and arguments like list(fun = function, args = list(a = 1, b = 2))
+#' @param tasks list of functions and arguments like list(fun = function, args = list(a = 1, b = 2)).
+#'   A task may also carry `chat`, an ellmer `Chat` passed to [carbon_track()].
 #' @param tracker codecarbon EmissionsTracker object
 #' @return A tibble of function results and emissions
 #' @export
@@ -132,7 +148,7 @@ carbon_track_all <- function(tasks, tracker) {
       do.call(
         carbon_track,
         c(
-          list(fun = spec$fun, tracker = tracker),
+          list(fun = spec$fun, tracker = tracker, chat = spec$chat),
           spec$args
         )
       )

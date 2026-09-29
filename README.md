@@ -90,12 +90,62 @@ Returns a tidy tibble with task id, function results, metadata, emissions, energ
   <chr>        <chr>  ...           <dbl>      <dbl> ...
 ```
 
+### Provider Tracking (hosted LLMs)
+CodeCarbon measures the electricity *your machine* draws. When your R code calls a hosted language model (ChatGPT, Claude, Gemini, ...), the model runs in the provider's datacenter, which CodeCarbon cannot see. `tidycarbon` estimates that provider-side impact with [EcoLogits](https://ecologits.ai), from the tokens each request was billed for.
+
+Pass an [ellmer](https://ellmer.tidyverse.org) chat to any tracker, and the requests it makes while your code runs are estimated alongside the local measurement:
+
+```r
+library(tidycarbon)
+
+tracker <- carbon_init(project_name = "Fridays for Future")
+chat <- ellmer::chat_openai(model = "gpt-4o-mini")
+
+summarise_text <- function(text) chat$chat(paste("Summarise:", text))
+
+res <- carbon_track(summarise_text, text = my_text, tracker = tracker, chat = chat)
+res$provider[[1]]        # one row per request: tokens, model, energy/CO2e/water ranges
+
+tracker_stop(tracker)
+```
+
+`carbon_run(chat = )` and `carbon_step(chat = )` work the same way; collect a pipeline's provider log with `carbon_collect_provider()`. For other clients (rollama, httr2, ...), build the requests table yourself with `carbon_calls()`. To measure a Claude Code session, read its transcript:
+
+```r
+calls <- calls_from_transcript("~/.claude/projects/<project>/<session-id>.jsonl")
+
+carbon_tokens(calls)                                   # sent, received, cache hit rate
+carbon_provider(calls) |> carbon_provider_summary()    # summed lower / upper bounds
+carbon_provider(calls) |> carbon_provider_summary(by = "model")
+```
+
+Here is an example of one Claude Code session (34 requests, 2.6M tokens sent, 41k received):
+
+| | lower | upper |
+|---|---|---|
+| Energy | 121.0 Wh | 239.9 Wh |
+| CO2e | 48.4 g | 94.1 g |
+| Water | 0.39 L | 0.96 L |
+
+How to read these numbers:
+
+- **They are estimates, not measurements.** EcoLogits models inference from each model's size and output length; nothing is measured at the provider.
+- **Only output tokens count.** Input and cached tokens do not enter the EcoLogits model, so a long prompt adds nothing to the estimate.
+- **Figures are ranges** (`*_min` / `*_max`) whenever a provider does not publish its model's size, which is the usual case for closed models.
+- **Newer models are approximated.** A model EcoLogits does not know yet is computed as the nearest known model of the same family; the `resolution` column says so on every row.
+- **Never add them to CodeCarbon's figures.** One is your machine, measured; the other is the provider's datacenter, modelled. They are kept in separate columns for that reason.
+
+EcoLogits is installed automatically through reticulate the first time a provider function is used.
+
 ## Key Functions
 
 - `carbon_init()`: Create a CodeCarbon tracker.
 - `tracker_start()` / `tracker_stop()`: Global run tracking.
 - `carbon_track(fun, ..., tracker)`: Track single function.
 - `carbon_track_all(tasks, tracker)`: Batch track list of tasks.
+- `carbon_calls()`, `calls_from_ellmer()`, `calls_from_transcript()`: Collect billed LLM requests.
+- `carbon_tokens()`: Token accounting (sent, received, cache hit rate).
+- `carbon_provider()` / `carbon_provider_summary()`: Provider-side inference impacts with EcoLogits.
 - `carbon_view()`: Starts a Shiny dashboard at localhost (in development)
 
 ## Examples
@@ -107,7 +157,8 @@ See `vignettes` for more examples (in development).
 - **Rich metrics**: CO2e, energy (Wh), water (L), power draw, hardware/GPU details.
 - **Tidy output**: Results + emissions in one tibble.
 - **Visual Dashboard**: Results are viewed from a Shiny Dashboard (in development)
-- **Modern reticulate**: Auto-imports `codecarbon`.
+- **Hosted LLMs**: Token accounting and EcoLogits estimates of provider-side inference, kept separate from local measurements.
+- **Modern reticulate**: Auto-imports `codecarbon` (and `ecologits` when needed).
 - **Roadmap**: Tests, vignettes, website, pipe operator.
 
 ## Citation

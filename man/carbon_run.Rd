@@ -10,7 +10,8 @@ carbon_run(
   label = "pipeline",
   task_id = uuid::UUIDgenerate(),
   output_dir = NULL,
-  output_file = "emissions.csv"
+  output_file = "emissions.csv",
+  chat = NULL
 )
 }
 \arguments{
@@ -26,11 +27,17 @@ carbon_run(
 read from `tracker$output_dir`.}
 
 \item{output_file}{CSV filename (default "emissions.csv").}
+
+\item{chat}{Optional ellmer `Chat` used inside the tracked code. Its new
+requests are estimated with [carbon_provider()]; see `@return`.}
 }
 \value{
 A list with:
   - `result`: the evaluated expression
   - `log`: a 1-row tibble with emissions/time and CSV-derived fields
+  - `provider`: only when `chat` is given, the per-request provider-side
+    estimate from [carbon_provider()]. A separate scope from `log`; never
+    add the two.
 }
 \description{
 Runs an expression under a single `tracker$start()` / `tracker$stop()` window.

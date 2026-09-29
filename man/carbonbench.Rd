@@ -4,10 +4,20 @@
 \alias{carbonbench}
 \title{Benchmark carbon emissions of two functions}
 \usage{
-carbonbench(..., times = 10, tracker = NULL, project_name = "carbonbench")
+carbonbench(
+  ...,
+  times = 10,
+  tracker = NULL,
+  project_name = "carbonbench",
+  measure_power_secs = 0.01,
+  warmup = TRUE
+)
 }
 \arguments{
-\item{...}{Two named functions to benchmark, e.g. `v3 = fun_a, v4 = fun_b`.}
+\item{...}{Two named expressions or functions to benchmark. Expressions are
+accepted unevaluated (like `microbenchmark::microbenchmark()`), so piped
+calls work, e.g. `v4 = as.tokens_xptr(xtoks) |> tokens_ngrams()`.
+Functions are called with no arguments.}
 
 \item{times}{Number of times to run each function.}
 

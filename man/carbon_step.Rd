@@ -12,7 +12,8 @@ carbon_step(
   label = NULL,
   task_id = uuid::UUIDgenerate(),
   output_dir = NULL,
-  output_file = "emissions.csv"
+  output_file = "emissions.csv",
+  chat = NULL
 )
 }
 \arguments{
@@ -32,10 +33,15 @@ carbon_step(
 read from `tracker$output_dir`.}
 
 \item{output_file}{CSV filename (default "emissions.csv").}
+
+\item{chat}{Optional ellmer `Chat` used inside the tracked code. Its new
+requests are estimated with [carbon_provider()]; see `@return`.}
 }
 \value{
 The transformed object (result of `.f(.data, ...)`) with a
-  `carbon_log` attribute (tibble).
+  `carbon_log` attribute (tibble) and, when `chat` is given, a
+  `provider_log` attribute accumulating the per-request provider-side
+  estimate of each step (see [carbon_collect_provider()]).
 }
 \description{
 Wraps a single function call `.f(.data, ...)` with `tracker$start()` and

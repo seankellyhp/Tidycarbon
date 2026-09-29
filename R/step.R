@@ -9,6 +9,19 @@ carbon_collect <- function(x) {
   attr(x, "carbon_log") %||% tibble::tibble()
 }
 
+#' Collect provider-side logs from a pipeline object
+#'
+#' `carbon_step(chat = ...)` stores the per-request provider-side estimate of
+#' each step as an attribute on the returned object. Summarise it with
+#' [carbon_provider_summary()]; never add it to [carbon_collect()]'s figures.
+#'
+#' @param x An object returned by `carbon_step()`.
+#' @return A tibble (possibly empty).
+#' @export
+carbon_collect_provider <- function(x) {
+  attr(x, "provider_log") %||% tibble::tibble()
+}
+
 #' Track emissions for one pipeline step
 #'
 #' Wraps a single function call `.f(.data, ...)` with `tracker$start()` and
@@ -26,9 +39,13 @@ carbon_collect <- function(x) {
 #' @param output_dir Directory containing the emissions CSV. If NULL, attempts to
 #'   read from `tracker$output_dir`.
 #' @param output_file CSV filename (default "emissions.csv").
+#' @param chat Optional ellmer `Chat` used inside the tracked code. Its new
+#'   requests are estimated with [carbon_provider()]; see `@return`.
 #'
 #' @return The transformed object (result of `.f(.data, ...)`) with a
-#'   `carbon_log` attribute (tibble).
+#'   `carbon_log` attribute (tibble) and, when `chat` is given, a
+#'   `provider_log` attribute accumulating the per-request provider-side
+#'   estimate of each step (see [carbon_collect_provider()]).
 #' @export
 carbon_step <- function(.data,
                         .f,
@@ -37,10 +54,15 @@ carbon_step <- function(.data,
                         label = NULL,
                         task_id = uuid::UUIDgenerate(),
                         output_dir = NULL,
-                        output_file = "emissions.csv") {
+                        output_file = "emissions.csv",
+                        chat = NULL) {
 
   stopifnot(is.function(.f))
   if (is.null(label)) label <- deparse(substitute(.f))
+
+  # Run the upstream steps now: `.data` is a lazy promise, and forcing it inside
+  # this step's tracking window would nest the previous step's work in it.
+  force(.data)
 
   if (is.null(output_dir)) {
     output_dir <- tryCatch(tracker$output_dir, error = function(e) NULL)
@@ -50,6 +72,7 @@ carbon_step <- function(.data,
   }
 
   before_n <- nrow(carbon_read(output_dir, output_file))
+  turns_before <- chat_turn_count(chat)
 
   tryCatch(tracker$start(), error = function(e) NULL)
 
@@ -106,6 +129,16 @@ carbon_step <- function(.data,
 
   prev <- attr(.data, "carbon_log")
   attr(out, "carbon_log") <- dplyr::bind_rows(prev, log_row)
+
+  prev_provider <- attr(.data, "provider_log")
+  if (!is.null(chat)) {
+    step_provider <- provider_for_chat(chat, turns_before, wall_time_sec)
+    if (!is.null(step_provider)) {
+      step_provider <- tibble::add_column(step_provider, task_id = task_id, label = label, .before = 1)
+    }
+    prev_provider <- dplyr::bind_rows(prev_provider, step_provider)
+  }
+  attr(out, "provider_log") <- prev_provider
 
   out
 }
