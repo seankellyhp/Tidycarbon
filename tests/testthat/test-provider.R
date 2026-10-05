@@ -47,6 +47,17 @@ test_that("carbon_provider estimates per request and names each resolution", {
   expect_equal(x$grid_zone[1:2], rep(x$grid_zone[1], 2))
 })
 
+test_that("a router's dotted version resolves to the provider's hyphenated one", {
+  skip_if_no_ecologits()
+  x <- carbon_provider(carbon_calls(
+    model = c("anthropic/claude-haiku-4.5", "anthropic/claude-opus-99.1", "openai/gpt-4.1"),
+    output_tokens = 100
+  ))
+  expect_equal(x$resolved_model, c("claude-haiku-4-5", x$resolved_model[2], "gpt-4.1"))
+  expect_equal(x$resolution[c(1, 3)], c("exact", "exact"))
+  expect_match(x$resolution[2], "^proxy: nearest registered opus")
+})
+
 test_that("carbon_provider_summary sums bound-wise and reports the unmodelled", {
   skip_if_no_ecologits()
   x <- carbon_provider(carbon_calls(
@@ -130,4 +141,97 @@ test_that("calls_from_transcript dedupes on message id and derives latency", {
 
   windowed <- calls_from_transcript(path, end = as.POSIXct("2026-01-01 10:30:00", tz = "UTC"))
   expect_equal(nrow(windowed), 1)
+})
+
+test_that("calls_from_transcript measures latency from the triggering message", {
+  skip_if_no_ecologits()
+  path <- tempfile(fileext = ".jsonl")
+  usage <- '{"input_tokens":3,"output_tokens":50}'
+  writeLines(c(
+    '{"uuid":"u1","timestamp":"2026-01-01T10:00:00Z","message":{"role":"user","content":"hi"}}',
+    '{"uuid":"x1","parentUuid":"u1","type":"attachment","timestamp":"2026-01-01T10:00:00Z"}',
+    '{"uuid":"x2","parentUuid":"x1","type":"attachment","timestamp":"2026-01-01T10:00:03Z"}',
+    paste0('{"uuid":"a1","parentUuid":"x2","timestamp":"2026-01-01T10:00:03Z","message":{"id":"m1","model":"claude-sonnet-4-5","usage":', usage, '}}'),
+    paste0('{"uuid":"a2","parentUuid":"missing","timestamp":"2026-01-01T10:00:09Z","message":{"id":"m2","model":"claude-sonnet-4-5","usage":', usage, '}}')
+  ), path)
+
+  x <- calls_from_transcript(path)
+  expect_equal(x$latency_s[1], 3)
+  expect_identical(x$latency_s[2], NA_real_)
+})
+
+# A chat whose `ask()` appends a user/assistant exchange without calling an API.
+fake_chat <- function(model = "claude-sonnet-4-5") {
+  chat <- ellmer::chat_anthropic(model = model, api_key = "not-used")
+  ask <- function(output_tokens = 100) {
+    chat$set_turns(c(chat$get_turns(), list(
+      ellmer::Turn("user", list(ellmer::ContentText("q"))),
+      ellmer::Turn("assistant", list(ellmer::ContentText("a")), tokens = c(10, output_tokens))
+    )))
+    "a"
+  }
+  list(chat = chat, ask = ask)
+}
+
+test_that("a remote tracker drives carbon_track like a CodeCarbon one", {
+  skip_if_not_installed("ellmer")
+  skip_if_no_ecologits()
+  f <- fake_chat()
+  f$ask(999)                                   # before the window: not counted
+  tracker <- carbon_init_remote(f$chat, project_name = "p")
+
+  res <- carbon_track(function(n) { f$ask(n); f$ask(n) }, n = 200, tracker = tracker)
+  expect_equal(nrow(res), 1)
+  expect_equal(res$project_name, "p")
+  expect_equal(res$engine, "ecologits")
+  expect_equal(res$result[[1]], "a")
+  expect_equal(res$n_calls, 2)
+  expect_equal(res$n_modelled, 2)
+  expect_equal(res$output_tokens, 400)
+  expect_true(res$energy_consumed_min > 0)
+  expect_true(res$emissions_total_max >= res$emissions_total_min)
+  expect_equal(nrow(res$calls[[1]]), 2)
+  expect_equal(res$energy_consumed_max, sum(res$calls[[1]]$energy_kwh_max))
+
+  all <- carbon_track_all(list(
+    list(fun = function() f$ask(50), args = list()),
+    list(fun = function() NULL, args = list())
+  ), tracker)
+  expect_equal(all$n_calls, c(1, 0))
+  expect_equal(all$energy_consumed_max[2], 0)
+})
+
+test_that("a remote tracker drives carbon_run, carbon_step and global tracking", {
+  skip_if_not_installed("ellmer")
+  skip_if_no_ecologits()
+  f <- fake_chat()
+  tracker <- carbon_init_remote(f$chat)
+
+  run <- carbon_run({ f$ask(100); 42 }, tracker = tracker, label = "r")
+  expect_equal(run$result, 42)
+  expect_equal(run$log$label, "r")
+  expect_equal(run$log$n_calls, 1)
+  expect_equal(run$log$output_source, "ecologits")
+
+  step <- function(x, n) { f$ask(n); x + 1 }
+  out <- 1 |>
+    carbon_step(step, n = 100, tracker = tracker, label = "s1") |>
+    carbon_step(step, n = 300, tracker = tracker, label = "s2")
+  log <- carbon_collect(out)
+  expect_equal(as.numeric(out), 3)
+  expect_equal(log$label, c("s1", "s2"))
+  expect_equal(log$output_tokens, c(100, 300))
+  expect_true(log$energy_consumed_max[2] > log$energy_consumed_max[1])
+
+  tracker_start(tracker)
+  f$ask(100); f$ask(100)
+  total <- tracker_stop(tracker)
+  expect_equal(total$n_calls, 2)
+  expect_error(tracker_stop(tracker), "not started")
+})
+
+test_that("carbon_init_remote rejects anything that is not a chat", {
+  skip_if_not_installed("ellmer")
+  expect_error(carbon_init_remote("claude"), "ellmer Chat")
+  expect_error(carbon_init_remote(NULL, engine = "other"), "should be")
 })

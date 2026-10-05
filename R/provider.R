@@ -5,9 +5,13 @@
 #' cannot see. These functions estimate that provider-side impact with
 #' [EcoLogits](https://ecologits.ai) from the billed token usage of each request.
 #'
-#' Everything starts from a *calls* table, one row per billed request (see
-#' [carbon_calls()]), built from an ellmer chat ([calls_from_ellmer()]), a
-#' Claude Code session transcript ([calls_from_transcript()]) or by hand.
+#' To track R code, create a remote tracker with [carbon_init_remote()]
+#' and use it wherever a CodeCarbon tracker goes.
+#'
+#' Underneath, everything starts from a *calls* table, one row per billed
+#' request (see [carbon_calls()]), built from an ellmer chat
+#' ([calls_from_ellmer()]), a Claude Code session transcript
+#' ([calls_from_transcript()]) or by hand.
 #'
 #' Caveats, carried into every result:
 #' * **Only output tokens and latency enter the EcoLogits model.** Input and
@@ -90,16 +94,17 @@ carbon_calls <- function(model,
 #' Reads the token counts ellmer stores on each assistant turn, and the model
 #' and provider from `chat$get_provider()`.
 #'
-#' ellmer does not record per-request timestamps or latency, and older
-#' versions do not record cached input, so `ts` and `latency_s` are `NA`
-#' unless `latency_s` is supplied, and the cache columns are `0` (or
-#' `cache_read` holds ellmer's cached-input count where available).
+#' Latency is the request duration ellmer records on each turn (ellmer >=
+#' 0.4.0). Older versions record none, so `latency_s` is used instead. ellmer
+#' does not record per-request timestamps, so `ts` is `NA`, and the cache
+#' columns are `0` (or `cache_read` holds ellmer's cached-input count where
+#' available).
 #'
 #' @param chat An ellmer `Chat` object.
 #' @param since Number of turns (user and assistant) to skip, e.g. the turn
 #'   count before the code being tracked ran.
-#' @param latency_s Optional latency upper bound applied to every request,
-#'   e.g. the wall time of the tracked block.
+#' @param latency_s Latency upper bound for requests ellmer recorded no
+#'   duration for, e.g. the wall time of the tracked block.
 #' @return A calls tibble (see [carbon_calls()]).
 #' @export
 calls_from_ellmer <- function(chat, since = 0, latency_s = NA_real_) {
@@ -114,6 +119,9 @@ calls_from_ellmer <- function(chat, since = 0, latency_s = NA_real_) {
 
   tok <- lapply(turns, function(t) as.numeric(S7::prop(t, "tokens")))
   get <- function(i) vapply(tok, function(x) if (length(x) >= i) x[[i]] else if (i == 3) 0 else NA_real_, numeric(1))
+  duration <- vapply(turns, function(t) {
+    as.numeric(tryCatch(S7::prop(t, "duration"), error = function(e) NA_real_))
+  }, numeric(1))
 
   carbon_calls(
     model         = rep(model, length(turns)),
@@ -121,7 +129,7 @@ calls_from_ellmer <- function(chat, since = 0, latency_s = NA_real_) {
     provider      = rep(provider, length(turns)),
     input_tokens  = get(1),
     cache_read    = get(3),
-    latency_s     = rep(latency_s, length(turns)),
+    latency_s     = dplyr::coalesce(duration, rep(as.numeric(latency_s), length(turns))),
     ts            = rep(as.POSIXct(NA), length(turns))
   )
 }
@@ -154,6 +162,7 @@ calls_from_transcript <- function(path, start = NULL, end = NULL) {
     latency_s     = py_col(cols$latency_s, numeric()),
     ts            = as.POSIXct(py_col(cols$ts, character()), format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC")
   )
+  out$latency_s[is.nan(out$latency_s)] <- NA_real_
   out$sidechain <- py_col(cols$sidechain, logical())
   out
 }
@@ -268,19 +277,117 @@ carbon_provider_summary <- function(x, by = c("total", "model")) {
     )
 }
 
-# Provider estimate for the ellmer turns added since `since`, for the tracker
-# hooks. Never lets a provider failure break the user's tracked code.
-provider_for_chat <- function(chat, since, wall_time_sec) {
-  tryCatch(
-    carbon_provider(calls_from_ellmer(chat, since = since, latency_s = wall_time_sec)),
-    error = function(e) {
-      rlang::warn(paste("Provider impacts not estimated:", conditionMessage(e)))
-      NULL
-    }
+chat_turn_count <- function(chat) {
+  length(chat$get_turns())
+}
+
+#' Initialize a remote tracker
+#'
+#' The provider-side counterpart of [carbon_init()]. Where a CodeCarbon tracker
+#' measures the electricity this machine draws, a remote tracker watches one or
+#' more ellmer chats and estimates the provider-side impact of the requests
+#' they make (see [provider-impacts]). It goes wherever a CodeCarbon tracker
+#' goes: [carbon_track()], [carbon_track_all()], [carbon_run()],
+#' [carbon_step()], [tracker_start()] / [tracker_stop()].
+#'
+#' Only requests made through the watched chat objects are seen; a chat that is
+#' cloned or created inside the tracked code is not.
+#'
+#' @param chat An ellmer `Chat`, or a list of them.
+#' @param project_name Name of the project.
+#' @param engine Method used to estimate the impact of each request. Only
+#'   `"ecologits"` ([EcoLogits](https://ecologits.ai)) is available for now.
+#' @param zone Optional electricity-mix zone, as in [carbon_provider()].
+#' @return A `remote_tracker`. Its windows return a 1-row tibble with
+#'   `timestamp`, `duration`, the lower and upper bounds
+#'   `emissions_total_min/max` (kgCO2eq), `energy_consumed_min/max` (kWh),
+#'   `water_consumed_min/max` (L), `n_calls`, `n_modelled`, `output_tokens`,
+#'   `engine`, `engine_version` and `calls`, a list-column holding the
+#'   per-request table from the engine (see [carbon_provider()]).
+#' @export
+carbon_init_remote <- function(chat,
+                               project_name = "rtest",
+                               engine = c("ecologits"),
+                               zone = NULL) {
+  engine <- match.arg(engine)
+  rlang::check_installed(c("ellmer", "S7"), "to track an ellmer chat.")
+  chats <- if (inherits(chat, "Chat")) list(chat) else as.list(chat)
+  if (length(chats) == 0 || !all(vapply(chats, inherits, logical(1), "Chat"))) {
+    rlang::abort("`chat` must be an ellmer Chat or a list of them.")
+  }
+  # Fail here rather than after the tracked code has run.
+  version <- switch(engine, ecologits = provider_module()$VERSION)
+
+  self <- new.env(parent = emptyenv())
+  self$project_name <- project_name
+  self$chats <- chats
+  self$engine <- engine
+  self$engine_version <- version
+  self$zone <- zone
+  self$marks <- list()
+  # Same interface as a CodeCarbon tracker: a run window and a task window.
+  self$start      <- function() remote_mark(self, "run")
+  self$stop       <- function() remote_measure(self, "run")
+  self$start_task <- function() remote_mark(self, "task")
+  self$stop_task  <- function() remote_measure(self, "task")
+  class(self) <- "remote_tracker"
+  self
+}
+
+is_remote <- function(tracker) inherits(tracker, "remote_tracker")
+
+# Per-request estimate of a calls table by the tracker's engine.
+remote_estimate <- function(tracker, calls) {
+  switch(tracker$engine,
+    ecologits = carbon_provider(calls, zone = tracker$zone)
   )
 }
 
-chat_turn_count <- function(chat) {
-  if (is.null(chat)) return(NA_integer_)
-  length(chat$get_turns())
+remote_mark <- function(tracker, window) {
+  tracker$marks[[window]] <- list(
+    turns = vapply(tracker$chats, chat_turn_count, integer(1)),
+    t0    = Sys.time()
+  )
+  invisible(tracker)
+}
+
+remote_measure <- function(tracker, window) {
+  mark <- tracker$marks[[window]]
+  if (is.null(mark)) rlang::abort("Remote tracker was not started.")
+  tracker$marks[[window]] <- NULL
+  duration <- as.numeric(difftime(Sys.time(), mark$t0, units = "secs"))
+
+  calls <- purrr::map2(tracker$chats, mark$turns, function(chat, since) {
+    calls_from_ellmer(chat, since = since, latency_s = duration)
+  })
+  calls <- remote_estimate(tracker, dplyr::bind_rows(calls))
+  s <- carbon_provider_summary(calls)
+  # No requests is a true zero; requests that could not be modelled stay NA.
+  bound <- function(x) if (nrow(calls) == 0) 0 else x
+
+  tibble::tibble(
+    timestamp           = as.character(Sys.time()),
+    duration            = duration,
+    emissions_total_min = bound(s$gwp_kg_min),
+    emissions_total_max = bound(s$gwp_kg_max),
+    energy_consumed_min = bound(s$energy_kwh_min),
+    energy_consumed_max = bound(s$energy_kwh_max),
+    water_consumed_min  = bound(s$water_l_min),
+    water_consumed_max  = bound(s$water_l_max),
+    n_calls             = s$calls,
+    n_modelled          = s$n_modelled,
+    output_tokens       = sum(calls$output_tokens, na.rm = TRUE),
+    engine              = tracker$engine,
+    engine_version      = tracker$engine_version,
+    calls               = list(calls)
+  )
+}
+
+# A tracker window as a carbon_run() / carbon_step() log row.
+remote_log <- function(row, task_id, label) {
+  dplyr::bind_cols(
+    tibble::tibble(task_id = task_id, label = label),
+    tibble::add_column(row, wall_time_sec = row$duration, .after = "timestamp"),
+    tibble::tibble(output_source = row$engine)
+  )
 }

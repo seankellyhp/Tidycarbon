@@ -12,8 +12,8 @@ calls_from_ellmer(chat, since = 0, latency_s = NA_real_)
 \item{since}{Number of turns (user and assistant) to skip, e.g. the turn
 count before the code being tracked ran.}
 
-\item{latency_s}{Optional latency upper bound applied to every request,
-e.g. the wall time of the tracked block.}
+\item{latency_s}{Latency upper bound for requests ellmer recorded no
+duration for, e.g. the wall time of the tracked block.}
 }
 \value{
 A calls tibble (see [carbon_calls()]).
@@ -23,8 +23,9 @@ Reads the token counts ellmer stores on each assistant turn, and the model
 and provider from `chat$get_provider()`.
 }
 \details{
-ellmer does not record per-request timestamps or latency, and older
-versions do not record cached input, so `ts` and `latency_s` are `NA`
-unless `latency_s` is supplied, and the cache columns are `0` (or
-`cache_read` holds ellmer's cached-input count where available).
+Latency is the request duration ellmer records on each turn (ellmer >=
+0.4.0). Older versions record none, so `latency_s` is used instead. ellmer
+does not record per-request timestamps, so `ts` is `NA`, and the cache
+columns are `0` (or `cache_read` holds ellmer's cached-input count where
+available).
 }

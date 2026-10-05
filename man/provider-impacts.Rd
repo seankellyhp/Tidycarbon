@@ -10,9 +10,13 @@ cannot see. These functions estimate that provider-side impact with
 [EcoLogits](https://ecologits.ai) from the billed token usage of each request.
 }
 \details{
-Everything starts from a *calls* table, one row per billed request (see
-[carbon_calls()]), built from an ellmer chat ([calls_from_ellmer()]), a
-Claude Code session transcript ([calls_from_transcript()]) or by hand.
+To track R code, create a remote tracker with [carbon_init_remote()]
+and use it wherever a CodeCarbon tracker goes.
+
+Underneath, everything starts from a *calls* table, one row per billed
+request (see [carbon_calls()]), built from an ellmer chat
+([calls_from_ellmer()]), a Claude Code session transcript
+([calls_from_transcript()]) or by hand.
 
 Caveats, carried into every result:
 * **Only output tokens and latency enter the EcoLogits model.** Input and

@@ -29,7 +29,10 @@ Imports:
     dplyr
 Suggests:
     ellmer,
+    knitr,
+    rmarkdown,
     S7,
     testthat (>= 3.0.0)
+VignetteBuilder: knitr
 Config/testthat/edition: 3
 RoxygenNote: 7.3.3

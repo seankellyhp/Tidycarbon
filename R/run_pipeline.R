@@ -3,29 +3,32 @@
 #' Runs an expression under a single `tracker$start()` / `tracker$stop()` window.
 #'
 #' @param expr An expression to evaluate (captured).
-#' @param tracker A CodeCarbon tracker from `carbon_init_pipe()`.
+#' @param tracker A CodeCarbon tracker from `carbon_init_pipe()`, or a
+#'   remote tracker from [carbon_init_remote()].
 #' @param label Optional label for the run.
 #' @param task_id Optional UUID string.
 #' @param output_dir Directory containing the emissions CSV. If NULL, attempts to
 #'   read from `tracker$output_dir`.
 #' @param output_file CSV filename (default "emissions.csv").
-#' @param chat Optional ellmer `Chat` used inside the tracked code. Its new
-#'   requests are estimated with [carbon_provider()]; see `@return`.
 #'
 #' @return A list with:
 #'   - `result`: the evaluated expression
-#'   - `log`: a 1-row tibble with emissions/time and CSV-derived fields
-#'   - `provider`: only when `chat` is given, the per-request provider-side
-#'     estimate from [carbon_provider()]. A separate scope from `log`; never
-#'     add the two.
+#'   - `log`: a 1-row tibble with emissions/time and CSV-derived fields, or
+#'     with a remote tracker the provider-side estimate described in
+#'     [carbon_init_remote()]
 #' @export
 carbon_run <- function(expr,
                        tracker,
                        label = "pipeline",
                        task_id = uuid::UUIDgenerate(),
                        output_dir = NULL,
-                       output_file = "emissions.csv",
-                       chat = NULL) {
+                       output_file = "emissions.csv") {
+
+  if (is_remote(tracker)) {
+    tracker$start()
+    res <- eval(substitute(expr), envir = parent.frame())
+    return(list(result = res, log = remote_log(tracker$stop(), task_id, label)))
+  }
 
   if (is.null(output_dir)) {
     output_dir <- tryCatch(tracker$output_dir, error = function(e) NULL)
@@ -35,7 +38,6 @@ carbon_run <- function(expr,
   }
 
   before_n <- nrow(carbon_read(output_dir, output_file))
-  turns_before <- chat_turn_count(chat)
 
   tryCatch(tracker$start(), error = function(e) NULL)
 
@@ -90,9 +92,5 @@ carbon_run <- function(expr,
     )
   }
 
-  out <- list(result = res, log = log)
-  if (!is.null(chat)) {
-    out$provider <- provider_for_chat(chat, turns_before, wall_time_sec)
-  }
-  out
+  list(result = res, log = log)
 }

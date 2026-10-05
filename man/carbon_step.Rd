@@ -12,8 +12,7 @@ carbon_step(
   label = NULL,
   task_id = uuid::UUIDgenerate(),
   output_dir = NULL,
-  output_file = "emissions.csv",
-  chat = NULL
+  output_file = "emissions.csv"
 )
 }
 \arguments{
@@ -23,7 +22,8 @@ carbon_step(
 
 \item{...}{Passed to `.f`.}
 
-\item{tracker}{A CodeCarbon tracker from `carbon_init_pipe()`.}
+\item{tracker}{A CodeCarbon tracker from `carbon_init_pipe()`, or a
+remote tracker from [carbon_init_remote()].}
 
 \item{label}{Optional human-readable label for the step.}
 
@@ -33,15 +33,11 @@ carbon_step(
 read from `tracker$output_dir`.}
 
 \item{output_file}{CSV filename (default "emissions.csv").}
-
-\item{chat}{Optional ellmer `Chat` used inside the tracked code. Its new
-requests are estimated with [carbon_provider()]; see `@return`.}
 }
 \value{
 The transformed object (result of `.f(.data, ...)`) with a
-  `carbon_log` attribute (tibble) and, when `chat` is given, a
-  `provider_log` attribute accumulating the per-request provider-side
-  estimate of each step (see [carbon_collect_provider()]).
+  `carbon_log` attribute (tibble). With a remote tracker each row is the
+  provider-side estimate described in [carbon_init_remote()].
 }
 \description{
 Wraps a single function call `.f(.data, ...)` with `tracker$start()` and

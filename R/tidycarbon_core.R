@@ -36,8 +36,9 @@ carbon_init <- function(project_name = "rtest",
 
 #' Stop Carbon Tracker
 #'
-#' @param tracker codecarbon EmissionsTracker object
-#' @return Stops Global Emissions Tracker
+#' @param tracker A CodeCarbon or remote tracker
+#' @return Stops Global Emissions Tracker. A remote tracker returns its
+#'   1-row estimate for the window (see [carbon_init_remote()]).
 #' @export
 tracker_stop <- function(tracker) {
 
@@ -46,7 +47,7 @@ tracker_stop <- function(tracker) {
 
 #' Start Carbon Tracker
 #'
-#' @param tracker codecarbon EmissionsTracker object
+#' @param tracker A CodeCarbon or remote tracker
 #' @return Starts Global Emissions Tracker
 #' @export
 tracker_start <- function(tracker) {
@@ -58,32 +59,40 @@ tracker_start <- function(tracker) {
 #'
 #' @param fun Arbitrary function
 #' @param ... Function inputs
-#' @param tracker codecarbon EmissionsTracker object
+#' @param tracker A CodeCarbon tracker from [carbon_init()], or a remote
+#'   tracker from [carbon_init_remote()].
 #' @param task_id Unique ID of function task
-#' @param chat Optional ellmer `Chat` used inside `fun`. The requests it makes
-#'   while `fun` runs are estimated with [carbon_provider()] and returned in a
-#'   `provider` list-column - a separate scope from the CodeCarbon columns,
-#'   never to be added to them.
-#' @return A tibble of function results and emissions
+#' @return A tibble of function results and emissions. With a remote
+#'   tracker the emissions columns are the provider-side estimate described in
+#'   [carbon_init_remote()].
 #' @export
-carbon_track <- function(fun, ..., tracker, task_id = uuid::UUIDgenerate(),
-                         chat = NULL) { # carbon_track()
+carbon_track <- function(fun, ..., tracker, task_id = uuid::UUIDgenerate()) { # carbon_track()
   stopifnot(is.function(fun))
 
-  turns_before <- chat_turn_count(chat)
+  if (is_remote(tracker)) {
+    tracker$start_task()
+    result <- fun(...)
+    return(dplyr::bind_cols(
+      tibble::tibble(
+        project_name = tracker$project_name,
+        task_id      = task_id,
+        fun          = deparse(substitute(fun)),
+        args         = list(list(...)),
+        result       = list(result)
+      ),
+      tracker$stop_task()
+    ))
+  }
 
   tracker$start_task()
-  t0 <- Sys.time()
 
   # Run user function
   result <- fun(...)
 
-  wall_time_sec <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
-
   # stop_task() RETURNS the emissions data
   emissions <- tracker$stop_task()
 
-  out <- tibble::tibble(
+  tibble::tibble(
 
     # Metadata
     project_name    = emissions$project_name,
@@ -127,18 +136,12 @@ carbon_track <- function(fun, ..., tracker, task_id = uuid::UUIDgenerate(),
     pue                 = emissions$pue,
     wue                 = emissions$wue
   )
-
-  if (!is.null(chat)) {
-    out$provider <- list(provider_for_chat(chat, turns_before, wall_time_sec))
-  }
-  out
 }
 
 #' Track Emissions for a list of functions
 #'
-#' @param tasks list of functions and arguments like list(fun = function, args = list(a = 1, b = 2)).
-#'   A task may also carry `chat`, an ellmer `Chat` passed to [carbon_track()].
-#' @param tracker codecarbon EmissionsTracker object
+#' @param tasks list of functions and arguments like list(fun = function, args = list(a = 1, b = 2))
+#' @param tracker A CodeCarbon or remote tracker, as in [carbon_track()]
 #' @return A tibble of function results and emissions
 #' @export
 carbon_track_all <- function(tasks, tracker) {
@@ -148,7 +151,7 @@ carbon_track_all <- function(tasks, tracker) {
       do.call(
         carbon_track,
         c(
-          list(fun = spec$fun, tracker = tracker, chat = spec$chat),
+          list(fun = spec$fun, tracker = tracker),
           spec$args
         )
       )

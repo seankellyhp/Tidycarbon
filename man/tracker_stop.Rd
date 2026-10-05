@@ -7,10 +7,11 @@
 tracker_stop(tracker)
 }
 \arguments{
-\item{tracker}{codecarbon EmissionsTracker object}
+\item{tracker}{A CodeCarbon or remote tracker}
 }
 \value{
-Stops Global Emissions Tracker
+Stops Global Emissions Tracker. A remote tracker returns its
+  1-row estimate for the window (see [carbon_init_remote()]).
 }
 \description{
 Stop Carbon Tracker

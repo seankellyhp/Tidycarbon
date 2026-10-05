@@ -173,6 +173,12 @@ def resolve(provider: str, name: str) -> tuple[str, str | None, str]:
         return provider, name, f"exact, provider inferred as {provider}"
     if _registry.find_model(provider=provider, model_name=name) is not None:
         return provider, name, "exact"
+    # Routers write a version with a dot where the provider uses a hyphen
+    # (OpenRouter: claude-haiku-4.5).
+    if "." in name:
+        name = name.replace(".", "-")
+        if _registry.find_model(provider=provider, model_name=name) is not None:
+            return provider, name, "exact"
 
     key = version_key(name)
     if key is None:
@@ -281,15 +287,20 @@ def read_claude_code(path: str, start: str | None = None, end: str | None = None
     A completed assistant message is written once per content block, each line
     carrying the same `message.id` and the same final `usage`, so only the
     first line of each id contributes usage. Latency is the span from the
-    `parentUuid` record (the message or tool result that triggered the
-    request) to the message's last line - an approximation, but EcoLogits only
-    uses it as an upper bound. Subagent (isSidechain) rows are counted.
+    message or tool result that triggered the request to the message's last
+    line - an approximation, but EcoLogits only uses it as an upper bound. That
+    trigger is the nearest ancestor on the `parentUuid` chain that is itself a
+    message: Claude Code threads bookkeeping records (attachments) into the
+    chain, some written as the response arrives. Subagent (isSidechain) rows
+    are counted.
 
     `start` / `end` are ISO-8601 strings bounding the window; None is open.
     """
     lo = _parse_ts(start) if start else None
     hi = _parse_ts(end) if end else None
     ts_by_uuid: dict[str, datetime] = {}
+    parent_by_uuid: dict[str, str] = {}
+    is_message: set[str] = set()
     calls: dict[str, dict] = {}
     sent_by_mid: dict[str, datetime] = {}
     order: list[str] = []
@@ -308,6 +319,10 @@ def read_claude_code(path: str, start: str | None = None, end: str | None = None
             if uuid and ts is not None:
                 ts_by_uuid[uuid] = ts
             msg = rec.get("message")
+            if uuid:
+                parent_by_uuid[uuid] = rec.get("parentUuid") or ""
+                if isinstance(msg, dict):
+                    is_message.add(uuid)
             if not isinstance(msg, dict):
                 continue
             usage = msg.get("usage")
@@ -335,7 +350,10 @@ def read_claude_code(path: str, start: str | None = None, end: str | None = None
                 "latency_s": None,
                 "sidechain": bool(rec.get("isSidechain")),
             }
-            sent = ts_by_uuid.get(rec.get("parentUuid") or "")
+            trigger = rec.get("parentUuid") or ""
+            while trigger and trigger not in is_message:
+                trigger = parent_by_uuid.get(trigger, "")
+            sent = ts_by_uuid.get(trigger)
             if sent is not None and ts > sent:
                 call["latency_s"] = (ts - sent).total_seconds()
                 sent_by_mid[mid] = sent

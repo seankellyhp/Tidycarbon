@@ -93,23 +93,32 @@ Returns a tidy tibble with task id, function results, metadata, emissions, energ
 ### Provider Tracking (hosted LLMs)
 CodeCarbon measures the electricity *your machine* draws. When your R code calls a hosted language model (ChatGPT, Claude, Gemini, ...), the model runs in the provider's datacenter, which CodeCarbon cannot see. `tidycarbon` estimates that provider-side impact with [EcoLogits](https://ecologits.ai), from the tokens each request was billed for.
 
-Pass an [ellmer](https://ellmer.tidyverse.org) chat to any tracker, and the requests it makes while your code runs are estimated alongside the local measurement:
+Create a remote tracker around an [ellmer](https://ellmer.tidyverse.org) chat and use it exactly like a CodeCarbon tracker. The functions stay the same; only the target changes:
 
 ```r
 library(tidycarbon)
 
-tracker <- carbon_init(project_name = "Fridays for Future")
 chat <- ellmer::chat_openai(model = "gpt-4o-mini")
+tracker <- carbon_init_remote(chat, project_name = "Fridays for Future")
 
 summarise_text <- function(text) chat$chat(paste("Summarise:", text))
 
-res <- carbon_track(summarise_text, text = my_text, tracker = tracker, chat = chat)
-res$provider[[1]]        # one row per request: tokens, model, energy/CO2e/water ranges
-
-tracker_stop(tracker)
+res <- carbon_track(summarise_text, text = my_text, tracker = tracker)
+res              # one row: result, energy / CO2e / water as lower and upper bounds
+res$calls[[1]]   # one row per request: tokens, model, how it was resolved
 ```
 
-`carbon_run(chat = )` and `carbon_step(chat = )` work the same way; collect a pipeline's provider log with `carbon_collect_provider()`. For other clients (rollama, httr2, ...), build the requests table yourself with `carbon_calls()`. To measure a Claude Code session, read its transcript:
+`carbon_track_all()`, `carbon_run()`, `carbon_step()` (with `carbon_collect()`) and `tracker_start()` / `tracker_stop()` accept the same tracker. To measure your machine and the provider over the same code, open one tracker globally and pass the other:
+
+```r
+local <- carbon_init(project_name = "Fridays for Future")
+
+tracker_start(tracker)
+res_local <- carbon_track(summarise_text, text = my_text, tracker = local)
+res_provider <- tracker_stop(tracker)
+```
+
+The tracker sees the requests made through the chat it was given. For other clients (rollama, httr2, ...), build the requests table yourself with `carbon_calls()` and estimate it with `carbon_provider()`. To measure a Claude Code session, read its transcript:
 
 ```r
 calls <- calls_from_transcript("~/.claude/projects/<project>/<session-id>.jsonl")
@@ -133,13 +142,14 @@ How to read these numbers:
 - **Only output tokens count.** Input and cached tokens do not enter the EcoLogits model, so a long prompt adds nothing to the estimate.
 - **Figures are ranges** (`*_min` / `*_max`) whenever a provider does not publish its model's size, which is the usual case for closed models.
 - **Newer models are approximated.** A model EcoLogits does not know yet is computed as the nearest known model of the same family; the `resolution` column says so on every row.
-- **Never add them to CodeCarbon's figures.** One is your machine, measured; the other is the provider's datacenter, modelled. They are kept in separate columns for that reason.
+- **Never add them to CodeCarbon's figures.** One is your machine, measured; the other is the provider's datacenter, modelled. Each tracker returns its own table for that reason.
 
 EcoLogits is installed automatically through reticulate the first time a provider function is used.
 
 ## Key Functions
 
-- `carbon_init()`: Create a CodeCarbon tracker.
+- `carbon_init()`: Create a CodeCarbon tracker (your machine).
+- `carbon_init_remote()`: Create a remote tracker (hosted LLM provider; `engine = "ecologits"`).
 - `tracker_start()` / `tracker_stop()`: Global run tracking.
 - `carbon_track(fun, ..., tracker)`: Track single function.
 - `carbon_track_all(tasks, tracker)`: Batch track list of tasks.

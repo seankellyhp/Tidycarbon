@@ -7,7 +7,7 @@
 tracker_start(tracker)
 }
 \arguments{
-\item{tracker}{codecarbon EmissionsTracker object}
+\item{tracker}{A CodeCarbon or remote tracker}
 }
 \value{
 Starts Global Emissions Tracker
