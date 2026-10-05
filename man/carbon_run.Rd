@@ -23,18 +23,22 @@ remote tracker from [carbon_init_remote()].}
 
 \item{task_id}{Optional UUID string.}
 
-\item{output_dir}{Directory containing the emissions CSV. If NULL, attempts to
-read from `tracker$output_dir`.}
-
-\item{output_file}{CSV filename (default "emissions.csv").}
+\item{output_dir, output_file}{No longer used; kept so existing calls keep
+working.}
 }
 \value{
 A list with:
   - `result`: the evaluated expression
-  - `log`: a 1-row tibble with emissions/time and CSV-derived fields, or
+  - `log`: a 1-row tibble with time, energy and emissions, or
     with a remote tracker the provider-side estimate described in
     [carbon_init_remote()]
 }
 \description{
-Runs an expression under a single `tracker$start()` / `tracker$stop()` window.
+Runs an expression inside one CodeCarbon task, so the same tracker can be
+reused for any number of runs and each is measured on its own.
+}
+\details{
+Runs are not written to the emissions CSV as they finish. CodeCarbon writes
+the total, and one row per run to `emissions_base_<run_id>.csv`, when the
+tracker is stopped with [tracker_stop()].
 }

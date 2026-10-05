@@ -14,10 +14,9 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
 When your R code calls a hosted language model, the work happens in the
 provider's datacenter. CodeCarbon measures the electricity *your machine*
 draws, so it cannot see it. A **remote tracker** estimates that provider-side
-impact instead, and it plugs into the same functions you already use:
+impact instead, and it goes wherever a CodeCarbon tracker goes:
 `carbon_track()`, `carbon_track_all()`, `carbon_run()`, `carbon_step()` and
-`tracker_start()` / `tracker_stop()`. The functions stay the same; only the
-target changes.
+`tracker_start()` / `tracker_stop()`.
 
 This guide classifies the sentiment of eight product reviews with
 `openai/gpt-6-luna` and tracks what the requests cost. The output shown is
@@ -26,20 +25,27 @@ from a real run.
 ## Setup
 
 You need [ellmer](https://ellmer.tidyverse.org) and an API key. This guide
-reaches the model through OpenRouter, so put the key in `~/.Renviron`:
+reaches the model through OpenRouter. Put the key in a `.env` file in your
+project folder, with no spaces around the `=`, and keep that file out of
+version control:
 
 ```
 OPENROUTER_API_KEY=sk-or-...
 ```
 
-With an OpenAI key, use `chat_openai(model = "gpt-6-luna")` instead;
-everything else is identical.
+Then load it with `readRenviron()`:
 
 ```{r}
 library(tidycarbon)
 library(ellmer)
 library(dplyr)
+
+readRenviron(".env")
 ```
+
+A key already set in `~/.Renviron` works too, without the `readRenviron()`
+call. With an OpenAI key, use `chat_openai(model = "gpt-6-luna")` instead;
+everything else is identical.
 
 ## The task
 
@@ -55,11 +61,20 @@ reviews <- c(
   "Best purchase I have made all year!"
 )
 
-chat <- chat_openrouter(
-  model = "openai/gpt-6-luna",
-  system_prompt = "You classify the sentiment of product reviews.",
-  echo = "none"
-)
+system_prompt <- "You classify the sentiment of product reviews."
+
+new_chat <- function() {
+  chat_openrouter(
+    model = "openai/gpt-6-luna",
+    system_prompt = system_prompt,
+    echo = "none"
+  )
+}
+
+# One numbered line per review, so all eight go in a single request.
+numbered <- function(texts) paste0(seq_along(texts), ". ", texts, collapse = "\n")
+
+chat <- new_chat()
 
 sentiment_type <- type_array(items = type_object(
   id        = type_integer("Number of the review"),
@@ -67,26 +82,22 @@ sentiment_type <- type_array(items = type_object(
 ))
 
 classify <- function(texts) {
-  prompt <- paste0(seq_along(texts), ". ", texts, collapse = "\n")
-  chat$chat_structured(prompt, type = sentiment_type)
+  chat$chat_structured(numbered(texts), type = sentiment_type)
 }
 ```
-
-All eight reviews go in one request and come back as a data frame.
 
 ## Create a remote tracker
 
 Where `carbon_init()` creates a CodeCarbon tracker for your machine,
-`carbon_init_remote()` creates a tracker for the provider. Give it the chat
-your code uses:
+`carbon_init_remote()` creates one for the provider. Give it the chat your
+code uses:
 
 ```{r}
 tracker <- carbon_init_remote(chat, project_name = "sentiment")
 ```
 
-The `engine` argument selects the estimation method. It defaults to
-`"ecologits"` ([EcoLogits](https://ecologits.ai)), currently the only one,
-which is installed automatically through reticulate.
+The estimate comes from [EcoLogits](https://ecologits.ai), which is installed
+automatically through reticulate.
 
 ## Track the classification
 
@@ -114,7 +125,7 @@ res |>
 #> # A tibble: 1 × 6
 #>   duration n_calls n_modelled output_tokens engine    engine_version
 #>      <dbl>   <int>      <int>         <dbl> <chr>     <chr>
-#> 1     4.89       1          1           141 ecologits 0.11.2
+#> 1     4.75       1          1           143 ecologits 0.11.2
 ```
 
 The impact columns use CodeCarbon's names and units (`energy_consumed` in
@@ -134,18 +145,16 @@ res |>
 #> # A tibble: 1 × 6
 #>   energy_wh_min energy_wh_max co2e_mg_min co2e_mg_max water_ml_min water_ml_max
 #>           <dbl>         <dbl>       <dbl>       <dbl>        <dbl>        <dbl>
-#> 1        0.0211        0.0225        9.48        10.0       0.0760       0.0810
+#> 1        0.0213        0.0227        9.59        10.1       0.0769       0.0820
 ```
 
 It is a range because OpenAI does not publish the size of its models, so
-EcoLogits brackets it. Each impact also has a `*_mean` column
-(`energy_consumed_mean`, `emissions_total_mean`, `water_consumed_mean`): the
-midpoint of the range, for when you need a single figure.
+EcoLogits brackets it. Each impact also has a `*_mean` column, the midpoint
+of the range, for when you need a single figure.
 
 ## Look at the individual requests
 
-The `calls` list-column holds one row per request, including whether
-EcoLogits could model it:
+The `calls` list-column holds one row per request:
 
 ```{r}
 res$calls[[1]] |>
@@ -154,15 +163,13 @@ res$calls[[1]] |>
 #> # A tibble: 1 × 8
 #>   provider model             modelled error input_tokens output_tokens latency_s grid_zone
 #>   <chr>    <chr>             <lgl>    <chr>        <dbl>         <dbl>     <dbl> <chr>
-#> 1 openai   openai/gpt-6-luna TRUE     NA             193           141      4.89 USA
+#> 1 openai   openai/gpt-6-luna TRUE     NA             187           143      4.75 USA
 ```
 
-Always check `modelled`. The model name is looked up in the EcoLogits registry
-exactly as the client recorded it. A model EcoLogits has not registered, often
-one newer than the installed release, is left out (`modelled = FALSE`, impacts
-`NA`, and `error` holds the EcoLogits code `"model-not-registered"`), and
-`n_modelled` in the summary row tells you how many requests were actually
-estimated.
+Always check `modelled`. A model EcoLogits has not registered, often one
+newer than the installed release, is left out: `modelled = FALSE`, impacts
+`NA`, and `error` holds the code `"model-not-registered"`. `n_modelled` in
+the summary row counts the requests that were actually estimated.
 
 ## Compare two prompting strategies
 
@@ -171,11 +178,7 @@ with `carbon_track_all()`. Each version gets its own chat, and one tracker
 watches both:
 
 ```{r}
-chat_reason <- chat_openrouter(
-  model = "openai/gpt-6-luna",
-  system_prompt = "You classify the sentiment of product reviews.",
-  echo = "none"
-)
+chat_reason <- new_chat()
 
 reason_type <- type_array(items = type_object(
   id        = type_integer("Number of the review"),
@@ -184,8 +187,7 @@ reason_type <- type_array(items = type_object(
 ))
 
 classify_reason <- function(texts) {
-  prompt <- paste0(seq_along(texts), ". ", texts, collapse = "\n")
-  chat_reason$chat_structured(prompt, type = reason_type)
+  chat_reason$chat_structured(numbered(texts), type = reason_type)
 }
 
 tracker <- carbon_init_remote(list(chat, chat_reason), project_name = "sentiment")
@@ -206,55 +208,136 @@ runs |>
 #> # A tibble: 2 × 5
 #>   strategy       n_calls output_tokens energy_wh_min energy_wh_max
 #>   <chr>            <int>         <dbl>         <dbl>         <dbl>
-#> 1 label only           1           141        0.0211        0.0225
-#> 2 label + reason       1           269        0.0331        0.0357
+#> 1 label only           1           133        0.0201        0.0214
+#> 2 label + reason       1           280        0.0342        0.0370
 ```
 
-The explanations nearly double the output tokens, and the estimate rises by
-about 60%. Output length is what drives the estimate, so trimming what you
+The explanations double the output tokens, and the estimate rises by about
+70%. Output length is what drives the estimate, so trimming what you
 ask the model to write is the most direct way to lower it.
 
 ## Measure your machine and the provider together
 
-The two trackers answer different questions, so each returns its own table.
-To cover the same code with both, open one globally and pass the other:
+`carbon_track()` takes one tracker. To cover the same code with both, give it
+the CodeCarbon tracker and open the remote tracker's window around the call
+with `tracker_start()` / `tracker_stop()`:
 
 ```{r}
 local <- carbon_init(project_name = "sentiment", measure_power_secs = 1)
 
-tracker_start(local)
-tracker_start(tracker)
+tracker_start(tracker)                 # provider window opens
 res_local  <- carbon_track(classify, texts = reviews, tracker = local)
-res_remote <- tracker_stop(tracker)
-tracker_stop(local)
+res_remote <- tracker_stop(tracker)    # provider window closes
+```
 
+Each tracker returns its own table. `res_local` is what your machine drew
+while it waited for the answer:
+
+```{r}
 res_local |> select(duration, energy_consumed, emissions_total)
 #> # A tibble: 1 × 3
 #>   duration energy_consumed emissions_total
 #>      <dbl>           <dbl>           <dbl>
-#> 1     4.41        0.000111       0.0000422
+#> 1     3.38       0.0000998       0.0000380
+```
 
+`res_remote` is the estimate for the requests made inside the window:
+
+```{r}
 res_remote |> select(n_calls, energy_consumed_min, energy_consumed_max)
 #> # A tibble: 1 × 3
 #>   n_calls energy_consumed_min energy_consumed_max
 #>     <int>               <dbl>               <dbl>
-#> 1       1           0.0000218           0.0000233
+#> 1       1           0.0000302           0.0000323
 ```
 
-Do not add the two. One is your machine, measured; the other is the
-provider's datacenter, modelled.
+Both are in kWh, but do not add them. One is your whole machine, measured;
+the other is the provider's datacenter, modelled.
+
+## Without ellmer: a direct API call
+
+A remote tracker reads its requests from an ellmer chat. With any other
+client you do that step yourself: every provider's API reports the tokens it
+billed, and that is all the estimate needs. Here is the first request again,
+sent straight to OpenRouter's endpoint with
+[httr2](https://httr2.r-lib.org):
+
+```{r}
+library(httr2)
+
+started <- Sys.time()
+resp <- request("https://openrouter.ai/api/v1/chat/completions") |>
+  req_auth_bearer_token(Sys.getenv("OPENROUTER_API_KEY")) |>
+  req_body_json(list(
+    model = "openai/gpt-6-luna",
+    messages = list(
+      list(role = "system", content = system_prompt),
+      list(role = "user", content = numbered(reviews))
+    )
+  )) |>
+  req_perform() |>
+  resp_body_json()
+latency <- as.numeric(difftime(Sys.time(), started, units = "secs"))
+```
+
+The response carries what the estimate needs: `resp$model` is the model that
+answered and `resp$usage` the tokens billed. Put them in a calls table, one
+row per request, with `carbon_calls()`:
+
+```{r}
+calls <- carbon_calls(
+  model         = resp$model,
+  provider      = "OpenRouter",
+  output_tokens = resp$usage$completion_tokens,
+  input_tokens  = resp$usage$prompt_tokens,
+  latency_s     = latency
+)
+```
+
+`carbon_provider()` estimates each row, and `carbon_provider_summary()` adds
+them up:
+
+```{r}
+est <- carbon_provider(calls)
+
+est |> select(provider, model, modelled, error, output_tokens, latency_s, grid_zone)
+#> # A tibble: 1 × 7
+#>   provider model             modelled error output_tokens latency_s grid_zone
+#>   <chr>    <chr>             <lgl>    <chr>         <dbl>     <dbl> <chr>
+#> 1 openai   openai/gpt-6-luna TRUE     NA               93      3.24 USA
+
+carbon_provider_summary(est) |>
+  select(calls, n_modelled, output_tokens,
+         energy_kwh_min, energy_kwh_mean, energy_kwh_max)
+#> # A tibble: 1 × 6
+#>   calls n_modelled output_tokens energy_kwh_min energy_kwh_mean energy_kwh_max
+#>   <int>      <int>         <dbl>          <dbl>           <dbl>          <dbl>
+#> 1     1          1            93      0.0000146       0.0000151      0.0000155
+```
+
+This is the calculation a remote tracker runs for you. The plain-text answer
+is shorter than the structured one (93 output tokens against 143), so the
+estimate is lower too. Three things to get right when you do it by hand:
+
+- **Name the provider.** With `"OpenRouter"`, the provider is read from the
+  model id: `openai/gpt-6-luna` is estimated as OpenAI's `gpt-6-luna`. For a
+  provider's own endpoint, use its EcoLogits id (`"openai"`, `"anthropic"`,
+  `"mistralai"`, `"google_genai"`, `"cohere"`, `"huggingface_hub"`).
+- **One row per request.** For several requests, pass vectors to
+  `carbon_calls()`. Never sum the tokens first: the estimate is computed per
+  request.
+- **Latency is optional.** It can only lower the estimate, so leave it `NA`
+  if you did not time the request.
 
 ## How to read the numbers
 
 - **They are estimates, not measurements.** EcoLogits models inference from
   the model's size and the length of its output. Nothing is measured at the
   provider.
-- **Only output tokens count.** The 193 input tokens above add nothing to the
-  estimate, so a long prompt looks free. The upper bound is the upper bound
-  for generating the output, not for the whole request.
-- **The tracker sees the chats you gave it.** A chat that is cloned or
-  created inside the tracked code is not seen, and its requests are not
-  counted. `n_calls` tells you how many were.
+- **Only output tokens count.** The 187 input tokens above add nothing to the
+  estimate, so a long prompt looks free.
+- **The tracker sees only the chats you gave it.** Requests from a chat
+  cloned or created inside the tracked code are not counted; check `n_calls`.
 - **Routing is invisible.** A request sent through OpenRouter is estimated
   as if the model's own provider served it from its usual datacenter.
 
@@ -262,6 +345,6 @@ provider's datacenter, modelled.
 
 - `carbon_run()` and `carbon_step()` accept the same tracker for expressions
   and pipelines; collect a pipeline's log with `carbon_collect()`.
-- For clients other than ellmer, build the requests table yourself with
-  `carbon_calls()` and estimate it with `carbon_provider()`.
+- `carbon_tokens()` summarises a calls table's token use: tokens sent and
+  received, cache hit rate and average context size.
 - To estimate a Claude Code session, see `calls_from_transcript()`.

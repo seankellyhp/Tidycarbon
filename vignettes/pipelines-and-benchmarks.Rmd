@@ -1,0 +1,334 @@
+---
+title: "Tracking Pipelines and Benchmarking"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Tracking Pipelines and Benchmarking}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+`vignette("local-tracking")` tracks a script and single functions. This guide
+covers larger units of work:
+
+- `carbon_run()` tracks **a whole pipeline** written as one expression, and
+  hands back its result with a one-row log.
+- `carbon_step()` tracks **each step** of a piped pipeline, so you can see
+  where the energy goes.
+- `carbonbench()` **benchmarks two expressions** against each other over
+  repeated runs, the way `microbenchmark::microbenchmark()` does for time.
+
+The example fits a topic model to 6,000 Guardian articles with quanteda and
+topicmodels, then compares tokenization in quanteda 3 and quanteda 4. The
+output shown is from a real run.
+
+## Setup
+
+```{r}
+library(tidycarbon)
+library(dplyr)
+library(ggplot2)
+library(quanteda)
+library(quanteda.corpora)   # remotes::install_github("quanteda/quanteda.corpora")
+library(topicmodels)
+
+guardian <- download("data_corpus_guardian")
+
+ndoc(guardian)
+#> [1] 6000
+```
+
+## Create a tracker that logs to a folder
+
+`carbon_init_pipe()` creates a CodeCarbon tracker that writes its log where
+you tell it, instead of the working directory:
+
+```{r}
+out_dir <- file.path(tempdir(), "tidycarbon_topicmodels")
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+
+tracker <- carbon_init_pipe(
+  project_name       = "topicmodels_guardian",
+  measure_power_secs = 1,
+  output_dir         = out_dir
+)
+```
+
+Use a folder of your own rather than `tempdir()` if you want to keep the log
+after the session ends.
+
+## Track a whole pipeline
+
+Wrap the pipeline in `carbon_run()`. The braces can hold any number of
+statements; the value of the last one is the result:
+
+```{r}
+run <- carbon_run({
+  dtm <- tokens(guardian, remove_punct = TRUE, remove_symbols = TRUE,
+                remove_numbers = TRUE, remove_url = TRUE) |>
+    tokens_tolower() |>
+    tokens_remove(stopwords("en")) |>
+    tokens_wordstem() |>
+    dfm() |>
+    dfm_trim(min_termfreq = 10, min_docfreq = 5) |>
+    convert(to = "topicmodels")
+
+  LDA(dtm, k = 20, method = "Gibbs",
+      control = list(seed = 42, iter = 100, burnin = 10))
+}, tracker = tracker, label = "guardian topic model")
+```
+
+`run` is a list of two things. `run$result` is what the expression returned,
+here the fitted model:
+
+```{r}
+terms(run$result, 5)[, 1:4]
+#>      Topic 1      Topic 2      Topic 3   Topic 4
+#> [1,] "govern"     "trump"      "compani" "one"
+#> [2,] "said"       "state"      "busi"    "year"
+#> [3,] "minist"     "clinton"    "bank"    "mani"
+#> [4,] "australia"  "republican" "said"    "church"
+#> [5,] "australian" "campaign"   "year"    "first"
+```
+
+`run$log` is one row describing the window:
+
+```{r}
+run$log |>
+  select(label, wall_time_sec, energy_consumed, emissions_total)
+#> # A tibble: 1 × 4
+#>   label                wall_time_sec energy_consumed emissions_total
+#>   <chr>                        <dbl>           <dbl>           <dbl>
+#> 1 guardian topic model          20.0        0.000544        0.000207
+```
+
+`wall_time_sec` is seconds, `energy_consumed` kWh and `emissions_total`
+kgCO2eq. The energy is split by component:
+
+```{r}
+run$log |>
+  transmute(
+    cpu_wh   = cpu_energy * 1000,
+    ram_wh   = ram_energy * 1000,
+    gpu_wh   = gpu_energy * 1000,
+    total_wh = energy_consumed * 1000
+  )
+#> # A tibble: 1 × 4
+#>   cpu_wh ram_wh gpu_wh total_wh
+#>    <dbl>  <dbl>  <dbl>    <dbl>
+#> 1  0.289  0.111  0.144    0.544
+```
+
+Nothing in this pipeline uses the GPU. The 0.144 Wh is what an idle graphics
+card drew for twenty seconds: the tracker measures the machine, not the R
+process.
+
+## Find the expensive part
+
+Which costs more, preparing the text or fitting the model? `carbon_step()`
+answers that by tracking one function call at a time. Put it between the
+pipes: the data comes in on the left, then the function, then its arguments.
+The same tracker serves every step:
+
+```{r}
+model <- guardian |>
+  carbon_step(tokens, remove_punct = TRUE, remove_symbols = TRUE,
+              remove_numbers = TRUE, remove_url = TRUE,
+              tracker = tracker, label = "tokens") |>
+  carbon_step(tokens_tolower, tracker = tracker, label = "lowercase") |>
+  carbon_step(tokens_remove, pattern = stopwords("en"),
+              tracker = tracker, label = "remove stopwords") |>
+  carbon_step(tokens_wordstem, tracker = tracker, label = "stem") |>
+  carbon_step(dfm, tracker = tracker, label = "dfm") |>
+  carbon_step(dfm_trim, min_termfreq = 10, min_docfreq = 5,
+              tracker = tracker, label = "trim") |>
+  carbon_step(convert, to = "topicmodels", tracker = tracker, label = "convert") |>
+  carbon_step(LDA, k = 20, method = "Gibbs",
+              control = list(seed = 42, iter = 100, burnin = 10),
+              tracker = tracker, label = "LDA")
+```
+
+`model` is the fitted topic model, exactly as the plain pipeline would return
+it. The measurements travel along with it, and `carbon_collect()` pulls them
+out, one row per step:
+
+```{r}
+steps <- carbon_collect(model)
+
+steps |>
+  transmute(label, wall_time_sec,
+            energy_wh = energy_consumed * 1000,
+            share     = energy_consumed / sum(energy_consumed))
+#> # A tibble: 8 × 4
+#>   label            wall_time_sec energy_wh   share
+#>   <chr>                    <dbl>     <dbl>   <dbl>
+#> 1 tokens                  4.44     0.124   0.205
+#> 2 lowercase               0.225    0.00579 0.00956
+#> 3 remove stopwords        0.146    0.00385 0.00635
+#> 4 stem                    0.118    0.00307 0.00508
+#> 5 dfm                     0.148    0.00413 0.00683
+#> 6 trim                    0.0999   0.00276 0.00455
+#> 7 convert                 0.587    0.0158  0.0261
+#> 8 LDA                    14.0      0.446   0.737
+```
+
+The Gibbs sampler is about three quarters of the energy and tokenizing a
+fifth; everything in between is a rounding error. The number of topics and
+iterations is where a saving would come from.
+
+## Read the full log
+
+`carbon_run()` and `carbon_step()` return their measurements directly.
+CodeCarbon writes its own log to `output_dir` when the tracker is stopped:
+
+```{r}
+tracker_stop(tracker)
+
+list.files(out_dir)
+#> [1] "emissions_base_f4b7bc72-22ac-486e-93c7-47a1eff63adb.csv"
+#> [2] "emissions.csv"
+```
+
+`emissions.csv` holds one row per tracker with its total, and
+`carbon_read()` returns it as a tibble:
+
+```{r}
+carbon_read(out_dir) |>
+  select(timestamp, project_name, energy_consumed, emissions, country_name)
+#> # A tibble: 1 × 5
+#>   timestamp           project_name         energy_consumed emissions country_name
+#>   <dttm>              <chr>                          <dbl>     <dbl> <chr>
+#> 1 2026-10-05 14:22:51 topicmodels_guardian         0.00120  0.000456 Germany
+```
+
+The `emissions_base_*.csv` file holds one row per run and step. Its
+`task_name` is the `task_id` of the matching log row:
+
+```{r}
+carbon_read(out_dir, list.files(out_dir, pattern = "^emissions_base")) |>
+  select(task_name, duration, energy_consumed, emissions)
+#> # A tibble: 10 × 4
+#>    task_name                            duration energy_consumed  emissions
+#>    <chr>                                   <dbl>           <dbl>      <dbl>
+#>  1 tidycarbon_warmup                      0.0151      0.0000489  0.0000186
+#>  2 5e9d3ba4-b182-4530-8859-667966e93713  20.0         0.000544   0.000207
+#>  3 aa4f37dc-12b0-4798-a609-05aa96f36c03   4.44        0.000124   0.0000472
+#>  4 64f2ed0d-deba-4b01-83be-b3018b54d534   0.233       0.00000579 0.00000221
+#>  5 d3d9589c-f1ad-457e-8436-fcd2abcbd252   0.153       0.00000385 0.00000147
+#>  6 46f612f0-c945-4ffb-9c56-6e432fc5b7f0   0.127       0.00000307 0.00000117
+#>  7 dc471352-7ce7-401e-ae87-01f42ddc36d1   0.154       0.00000413 0.00000157
+#>  8 79573094-f8fe-4ef3-b454-6e6f36c71014   0.107       0.00000276 0.00000105
+#>  9 5597b397-c4c8-4f72-998e-8387e83783f8   0.600       0.0000158  0.00000601
+#> 10 5d3d63b6-b587-41f9-8994-e8ec857c8ce5  14.0         0.000446   0.000170
+```
+
+The first row, `tidycarbon_warmup`, is an empty task tidycarbon runs once
+per tracker. It absorbs CodeCarbon's hardware start-up so that your first
+real measurement does not carry it.
+
+## Benchmark two expressions
+
+`carbonbench()` takes exactly two named expressions and runs each `times`
+times, in random order, after one untracked warm-up run of each. It creates
+and stops its own tracker. Here it compares the tokenizer in quanteda 3
+with the one in quanteda 4 on the same articles split into sentences:
+
+```{r}
+corp <- corpus_reshape(guardian)
+
+ndoc(corp)
+#> [1] 202011
+
+bench <- carbonbench(
+  v3 = quanteda3::tokens(corp, remove_punct = TRUE, remove_numbers = TRUE,
+                         remove_symbols = TRUE),
+  v4 = tokens(corp, remove_punct = TRUE, remove_numbers = TRUE,
+              remove_symbols = TRUE),
+  times = 5,
+  project_name = "quanteda_bench_carbon"
+)
+```
+
+The expressions are captured unevaluated, so pipes work inside them. The
+result has one row per run:
+
+```{r}
+bench |> select(task_id, expr, iter, duration, energy_consumed, emissions_total)
+#> # A tibble: 10 × 6
+#>    task_id expr   iter duration energy_consumed emissions_total
+#>    <chr>   <chr> <int>    <dbl>           <dbl>           <dbl>
+#>  1 v4_2    v4        2     4.58       0.000128        0.0000488
+#>  2 v3_5    v3        5     3.34       0.0000892       0.0000340
+#>  3 v3_2    v3        2     3.61       0.0000973       0.0000371
+#>  4 v3_4    v3        4     3.61       0.0000952       0.0000363
+#>  5 v4_3    v4        3     5.04       0.000141        0.0000535
+#>  6 v3_1    v3        1     3.72       0.0000977       0.0000372
+#>  7 v3_3    v3        3     3.66       0.0000965       0.0000367
+#>  8 v4_5    v4        5     5.29       0.000144        0.0000549
+#>  9 v4_4    v4        4     4.74       0.000132        0.0000501
+#> 10 v4_1    v4        1     4.74       0.000130        0.0000497
+```
+
+It is an ordinary tibble, so summarise it with dplyr:
+
+```{r}
+bench |>
+  group_by(expr) |>
+  summarise(
+    runs      = n(),
+    duration  = median(duration),
+    energy_wh = median(energy_consumed) * 1000,
+    co2e_mg   = median(emissions_total) * 1e6
+  )
+#> # A tibble: 2 × 5
+#>   expr   runs duration energy_wh co2e_mg
+#>   <chr> <int>    <dbl>     <dbl>   <dbl>
+#> 1 v3        5     3.61    0.0965    36.7
+#> 2 v4        5     4.74    0.132     50.1
+```
+
+On this machine and corpus, tokenizing with quanteda 4 takes about a third
+longer and a third more energy than quanteda 3.
+
+## Plot the benchmark
+
+`autoplot()` draws the runs as points over a violin. `metric` is one of
+`"duration"`, `"emissions_total"` or `"energy_consumed"`:
+
+```{r}
+autoplot(bench, metric = "energy_consumed")
+```
+
+```{r, echo = FALSE, eval = TRUE, out.width = "80%"}
+knitr::include_graphics("carbonbench-energy.png")
+```
+
+The return value is a ggplot, so add scales and labels as usual:
+
+```{r}
+autoplot(bench, metric = "energy_consumed") +
+  scale_y_continuous(labels = \(x) x * 1000) +
+  labs(y = "Energy per run (Wh)")
+```
+
+## How to read the numbers
+
+- **One tracker is enough.** Every `carbon_run()` and `carbon_step()` is
+  measured on its own, however many share a tracker.
+- **The window is the whole machine.** Idle components and other programs
+  are included, which is why a CPU-only pipeline shows GPU energy.
+- **Short runs are noisy.** `carbonbench()` samples power every 0.01 seconds
+  to resolve them, and repeats each expression; raise `times` before trusting
+  a small difference.
+- **Results are specific to the hardware.** The benchmark above is one CPU
+  and one corpus. Rerun it where your code actually runs.
+
+## Where next
+
+- To track individual functions and compare them as tasks, see
+  `vignette("local-tracking")`.
+- `carbon_run()` also accepts a remote tracker for pipelines that call a
+  hosted language model; see `vignette("remote-tracking")`.

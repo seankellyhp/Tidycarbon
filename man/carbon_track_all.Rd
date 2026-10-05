@@ -7,7 +7,8 @@
 carbon_track_all(tasks, tracker)
 }
 \arguments{
-\item{tasks}{list of functions and arguments like list(fun = function, args = list(a = 1, b = 2))}
+\item{tasks}{list of functions and arguments like list(fun = function, args = list(a = 1, b = 2)).
+Name the list to label the tasks in the `fun` column.}
 
 \item{tracker}{A CodeCarbon or remote tracker, as in [carbon_track()]}
 }

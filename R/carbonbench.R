@@ -52,7 +52,7 @@ carbonbench <- function(..., times = 10, tracker = NULL,
     nm <- runs$expr[i]
     task_id <- paste(nm, runs$iter[i], sep = "_")
 
-    tracker$start_task()
+    task_start(tracker, task_id)
     result <- run_one(nm)
     rm(result)
     emissions <- tracker$stop_task()

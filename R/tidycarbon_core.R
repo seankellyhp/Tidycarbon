@@ -29,8 +29,64 @@ carbon_init <- function(project_name = "rtest",
   carbon$EmissionsTracker(
     project_name = project_name,
     measure_power_secs = measure_power_secs,
-    tracking_mode = tracking_mode
+    tracking_mode = tracking_mode,
+    api_call_interval = LIVE_OUTPUT_OFF
   )
+}
+
+# CodeCarbon (3.3.1) overstates emissions each time its periodic live-output
+# pass fires, every `api_call_interval` measurements. Nothing here uses live
+# output, so trackers are created with it switched off.
+LIVE_OUTPUT_OFF <- -1L
+
+# Open a task window on a CodeCarbon tracker. The first task on a tracker also
+# carries CodeCarbon's hardware start-up, so it is spent on an empty one.
+# `task_id` becomes the task's name in CodeCarbon's own per-task CSV.
+task_start <- function(tracker, task_id) {
+  if (!reticulate::py_has_attr(tracker, "tidycarbon_warm")) {
+    tracker$start_task("tidycarbon_warmup")
+    tracker$stop_task()
+    reticulate::py_set_attr(tracker, "tidycarbon_warm", TRUE)
+  }
+  tracker$start_task(task_id)
+}
+
+# A finished task as a carbon_run() / carbon_step() log row.
+task_log <- function(emissions, task_id, label, wall_time_sec) {
+  tibble::tibble(
+    task_id = task_id,
+    label = label,
+    timestamp = as.character(emissions$timestamp),
+    wall_time_sec = wall_time_sec,
+    emissions_total = emissions$emissions,
+    duration = emissions$duration,
+    energy_consumed = emissions$energy_consumed,
+    cpu_energy = emissions$cpu_energy,
+    ram_energy = emissions$ram_energy,
+    gpu_energy = emissions$gpu_energy,
+    output_source = "codecarbon"
+  )
+}
+
+# A function's name as written by the caller, for the `fun` column.
+fun_label <- function(expr) deparse(expr, width.cutoff = 60L)[1]
+
+# Names for the tasks of carbon_track_all(): the list's own names, else the
+# `fun =` written inline, else the caller's name for that function.
+task_labels <- function(tasks, expr, env) {
+  inline <- if (is.call(expr) && identical(expr[[1]], quote(list))) as.list(expr)[-1]
+  funs <- Filter(function(nm) exists(nm, envir = env, mode = "function", inherits = FALSE),
+                 ls(env))
+  vapply(seq_along(tasks), function(i) {
+    nm <- names(tasks)[i]
+    if (!is.null(nm) && !is.na(nm) && nzchar(nm)) return(nm)
+    spec <- if (i <= length(inline)) inline[[i]]
+    if (is.call(spec) && !is.null(as.list(spec)$fun)) return(fun_label(as.list(spec)$fun))
+    for (nm in funs) {
+      if (identical(get(nm, envir = env), tasks[[i]]$fun)) return(nm)
+    }
+    NA_character_
+  }, character(1))
 }
 
 
@@ -68,26 +124,33 @@ tracker_start <- function(tracker) {
 #' @export
 carbon_track <- function(fun, ..., tracker, task_id = uuid::UUIDgenerate()) { # carbon_track()
   stopifnot(is.function(fun))
+  track_task(function() fun(...), list(...), tracker, task_id,
+             fun_name = fun_label(substitute(fun)))
+}
+
+# Run `run()` inside one task window and return its row. `args` and `fun_name`
+# are only recorded.
+track_task <- function(run, args, tracker, task_id, fun_name) {
 
   if (is_remote(tracker)) {
     tracker$start_task()
-    result <- fun(...)
+    result <- run()
     return(dplyr::bind_cols(
       tibble::tibble(
         project_name = tracker$project_name,
         task_id      = task_id,
-        fun          = deparse(substitute(fun)),
-        args         = list(list(...)),
+        fun          = fun_name,
+        args         = list(args),
         result       = list(result)
       ),
       tracker$stop_task()
     ))
   }
 
-  tracker$start_task()
+  task_start(tracker, task_id)
 
   # Run user function
-  result <- fun(...)
+  result <- run()
 
   # stop_task() RETURNS the emissions data
   emissions <- tracker$stop_task()
@@ -99,8 +162,8 @@ carbon_track <- function(fun, ..., tracker, task_id = uuid::UUIDgenerate()) { # 
     run_id          = emissions$run_id,
     experiment_id   = emissions$experiment_id,
     task_id         = task_id,
-    fun             = deparse(substitute(fun)),
-    args            = list(list(...)),
+    fun             = fun_name,
+    args            = list(args),
     result          = list(result),
 
     # Emissions data
@@ -140,20 +203,17 @@ carbon_track <- function(fun, ..., tracker, task_id = uuid::UUIDgenerate()) { # 
 
 #' Track Emissions for a list of functions
 #'
-#' @param tasks list of functions and arguments like list(fun = function, args = list(a = 1, b = 2))
+#' @param tasks list of functions and arguments like list(fun = function, args = list(a = 1, b = 2)).
+#'   Name the list to label the tasks in the `fun` column.
 #' @param tracker A CodeCarbon or remote tracker, as in [carbon_track()]
 #' @return A tibble of function results and emissions
 #' @export
 carbon_track_all <- function(tasks, tracker) {
+  labels <- task_labels(tasks, substitute(tasks), parent.frame())
 
-  tasks |>
-    purrr::map_dfr(function(spec) {
-      do.call(
-        carbon_track,
-        c(
-          list(fun = spec$fun, tracker = tracker),
-          spec$args
-        )
-      )
-    })
+  purrr::map2_dfr(tasks, labels, function(spec, label) {
+    args <- as.list(spec$args)
+    track_task(function() do.call(spec$fun, args), args, tracker,
+               uuid::UUIDgenerate(), fun_name = label)
+  })
 }

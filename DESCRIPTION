@@ -23,12 +23,14 @@ Imports:
     reticulate (>= 1.44.0),
     tibble,
     purrr,
+    readr,
     uuid,
     ggplot2,
     rlang,
     dplyr
 Suggests:
     ellmer,
+    httr2,
     knitr,
     rmarkdown,
     S7,

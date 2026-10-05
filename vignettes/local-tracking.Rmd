@@ -1,0 +1,253 @@
+---
+title: "Getting Started with Local Tracking"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with Local Tracking}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+tidycarbon measures the electricity your machine draws while R code runs and
+converts it to an emissions estimate. The measuring is done by
+[CodeCarbon](https://codecarbon.io), which is installed automatically through
+reticulate the first time you create a tracker.
+
+There are two ways to use a tracker:
+
+- **Around a script.** `tracker_start()` and `tracker_stop()` open and close
+  one window around whatever runs in between.
+- **Around a function.** `carbon_track()` and `carbon_track_all()` run a
+  function for you and return its result together with what it cost, one tidy
+  row per call.
+
+This guide uses both on the text of Jane Austen's novels, then compares two
+ways of scoring sentiment. The output shown is from a real run.
+
+## Setup
+
+```{r}
+library(tidycarbon)
+library(dplyr)
+library(tidytext)
+library(janeaustenr)
+
+books <- austen_books() |>
+  mutate(docid = paste0(book, "_", row_number()))
+
+books
+#> # A tibble: 73,422 × 3
+#>    text                    book                docid
+#>    <chr>                   <fct>               <chr>
+#>  1 "SENSE AND SENSIBILITY" Sense & Sensibility Sense & Sensibility_1
+#>  2 ""                      Sense & Sensibility Sense & Sensibility_2
+#>  3 "by Jane Austen"        Sense & Sensibility Sense & Sensibility_3
+#> # ℹ 73,419 more rows
+
+count_words <- function(data) {
+  data |>
+    unnest_tokens(word, text) |>
+    count(book, word, sort = TRUE)
+}
+```
+
+## Track a script
+
+Create a tracker with `carbon_init()`, start it, run your code, and stop it.
+Nothing in between needs to change:
+
+```{r}
+tracker <- carbon_init(project_name = "austen", measure_power_secs = 1)
+
+tracker_start(tracker)
+word_counts <- count_words(books)
+emissions <- tracker_stop(tracker)
+
+emissions
+#> [1] 6.157096e-06
+```
+
+`tracker_stop()` returns the emissions of the window in kgCO2eq. The full
+record is appended to `emissions.csv` in your working directory, one row per
+window:
+
+```{r}
+read.csv("emissions.csv") |>
+  as_tibble() |>
+  select(project_name, duration, energy_consumed, emissions, cpu_model)
+#> # A tibble: 1 × 5
+#>   project_name duration energy_consumed  emissions cpu_model
+#>   <chr>           <dbl>           <dbl>      <dbl> <chr>
+#> 1 austen           3.60       0.0000162 0.00000616 13th Gen Intel(R) Core(TM) i7-13700K
+```
+
+`measure_power_secs` is how often CodeCarbon samples power. The default of 10
+seconds suits long jobs; for code that finishes in a few seconds, set it to 1.
+
+## Track a function
+
+`carbon_track()` takes a function, its arguments and a tracker. It calls the
+function and returns one row holding the result and the measurement:
+
+```{r}
+tracker <- carbon_init(project_name = "austen", measure_power_secs = 1)
+
+res <- carbon_track(count_words, data = books, tracker = tracker)
+
+res |> select(fun, task_id, duration, energy_consumed, emissions_total)
+#> # A tibble: 1 × 5
+#>   fun         task_id                              duration energy_consumed emissions_total
+#>   <chr>       <chr>                                   <dbl>           <dbl>           <dbl>
+#> 1 count_words 9dec149d-9baa-431e-b84c-b7d0a3393524    0.437       0.0000198      0.00000754
+```
+
+`duration` is in seconds, `energy_consumed` in kWh and `emissions_total` in
+kgCO2eq. The function's own return value is in the `result` list-column:
+
+```{r}
+res$result[[1]]
+#> # A tibble: 40,378 × 3
+#>    book              word      n
+#>    <fct>             <chr> <int>
+#>  1 Mansfield Park    the    6206
+#>  2 Mansfield Park    to     5475
+#>  3 Mansfield Park    and    5438
+#> # ℹ 40,375 more rows
+```
+
+The energy is also split by component. At this scale watt-hours and
+milligrams are easier to read than kWh and kg:
+
+```{r}
+res |>
+  transmute(
+    cpu_wh   = cpu_energy * 1000,
+    gpu_wh   = gpu_energy * 1000,
+    ram_wh   = ram_energy * 1000,
+    total_wh = energy_consumed * 1000,
+    co2e_mg  = emissions_total * 1e6
+  )
+#> # A tibble: 1 × 5
+#>    cpu_wh gpu_wh  ram_wh total_wh co2e_mg
+#>     <dbl>  <dbl>   <dbl>    <dbl>   <dbl>
+#> 1 0.00675 0.0106 0.00242   0.0198    7.54
+```
+
+Every row also records the hardware and location the measurement came from,
+so results from different machines stay distinguishable:
+
+```{r}
+res |>
+  select(country_name, cpu_model, cpu_count, gpu_model,
+         ram_total_size, codecarbon_version) |>
+  glimpse()
+#> Rows: 1
+#> Columns: 6
+#> $ country_name       <chr> "Germany"
+#> $ cpu_model          <chr> "13th Gen Intel(R) Core(TM) i7-13700K"
+#> $ cpu_count          <int> 24
+#> $ gpu_model          <chr> "1 x NVIDIA GeForce RTX 3090 Ti"
+#> $ ram_total_size     <dbl> 62.58013
+#> $ codecarbon_version <chr> "3.3.1"
+```
+
+## Compare two approaches
+
+Is a dictionary-based sentiment score cheaper with tidytext or with quanteda?
+Write each as a function of the same data:
+
+```{r}
+library(quanteda)
+library(quanteda.sentiment)
+
+tidy_sentiment <- function(data) {
+  data |>
+    unnest_tokens(word, text) |>
+    inner_join(get_sentiments("afinn"), by = "word",
+               relationship = "many-to-many") |>
+    group_by(docid) |>
+    summarise(sentiment = mean(value, na.rm = TRUE))
+}
+
+quanteda_sentiment <- function(data) {
+  corp <- corpus(data, text_field = "text", docid_field = "docid")
+  textstat_valence(corp, dictionary = data_dictionary_AFINN)
+}
+```
+
+`carbon_track_all()` takes a list of tasks, each a function and its
+arguments, and tracks them one after another on the same tracker:
+
+```{r}
+tasks <- list(
+  list(fun = tidy_sentiment,     args = list(data = books)),
+  list(fun = quanteda_sentiment, args = list(data = books))
+)
+
+runs <- carbon_track_all(tasks, tracker)
+
+runs |>
+  transmute(fun, duration,
+            energy_wh = energy_consumed * 1000,
+            co2e_mg   = emissions_total * 1e6)
+#> # A tibble: 2 × 4
+#>   fun                duration energy_wh co2e_mg
+#>   <chr>                 <dbl>     <dbl>   <dbl>
+#> 1 tidy_sentiment        0.443    0.0193    7.35
+#> 2 quanteda_sentiment    0.868    0.0420   16.0
+```
+
+The result is one row per task, in the order you gave them, with the
+function's name in `fun`. A single run of half a second is a noisy
+measurement, so repeat the tasks and summarise:
+
+```{r}
+carbon_track_all(rep(tasks, 5), tracker) |>
+  group_by(fun) |>
+  summarise(runs = n(),
+            duration  = median(duration),
+            energy_wh = median(energy_consumed) * 1000)
+#> # A tibble: 2 × 4
+#>   fun                 runs duration energy_wh
+#>   <chr>              <int>    <dbl>     <dbl>
+#> 1 quanteda_sentiment     5    0.867   0.0253
+#> 2 tidy_sentiment         5    0.329   0.00911
+```
+
+Before reading the tidytext version as the cheaper way to get the same answer,
+look at what each returned:
+
+```{r}
+nrow(runs$result[[1]])
+#> [1] 33165
+nrow(runs$result[[2]])
+#> [1] 73422
+```
+
+tidytext drops every line without a dictionary word; quanteda scores all
+73,422 lines and gives those a 0. A comparison of cost only means something
+once the two functions do the same job.
+
+## How to read the numbers
+
+- **Energy is measured where the hardware allows it.** Here the CPU is read
+  from RAPL counters and the GPU from the NVIDIA driver; RAM is estimated
+  from its size. CodeCarbon prints which method it used when the tracker is
+  created. Where no counter is available it falls back to an estimate from
+  the CPU model.
+- **Emissions are derived.** They are the energy multiplied by a carbon
+  intensity for the location in `country_name`, not a second measurement.
+- **It is the whole machine.** A browser or another job running at the same
+  time is counted too. Close what you can and repeat short measurements.
+
+## Where next
+
+- `carbon_run()` tracks a whole pipeline as one expression, `carbon_step()`
+  each step of it, and `carbonbench()` benchmarks two expressions against
+  each other; see
+  `vignette("pipelines-and-benchmarks")`.
+- For code that calls a hosted language model, the work happens at the
+  provider; see `vignette("remote-tracking")`.

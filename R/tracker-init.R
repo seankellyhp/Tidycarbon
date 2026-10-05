@@ -49,7 +49,8 @@ carbon_init_pipe <- function(project_name = "rtest",
     measure_power_secs = measure_power_secs,
     tracking_mode = tracking_mode,
     output_dir = output_dir,
-    output_file = output_file
+    output_file = output_file,
+    api_call_interval = LIVE_OUTPUT_OFF
   )
   if (isTRUE(has_offline)) {
     args$offline <- offline

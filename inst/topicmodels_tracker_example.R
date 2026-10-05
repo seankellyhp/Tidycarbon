@@ -48,5 +48,7 @@ print(run$log)
 terms(run$result, 10)
 
 # ---- Read entire CSV (raw CodeCarbon log) ----
+# CodeCarbon writes the log when the tracker is stopped
+tracker_stop(tracker)
 csv_all <- carbon_read(out_dir, "emissions.csv")
 print(dplyr::glimpse(csv_all))

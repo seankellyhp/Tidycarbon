@@ -29,10 +29,8 @@ remote tracker from [carbon_init_remote()].}
 
 \item{task_id}{Optional UUID string for joining/identification.}
 
-\item{output_dir}{Directory containing the emissions CSV. If NULL, attempts to
-read from `tracker$output_dir`.}
-
-\item{output_file}{CSV filename (default "emissions.csv").}
+\item{output_dir, output_file}{No longer used; kept so existing calls keep
+working.}
 }
 \value{
 The transformed object (result of `.f(.data, ...)`) with a
@@ -40,10 +38,12 @@ The transformed object (result of `.f(.data, ...)`) with a
   provider-side estimate described in [carbon_init_remote()].
 }
 \description{
-Wraps a single function call `.f(.data, ...)` with `tracker$start()` and
-`tracker$stop()`, then reads the latest row from CodeCarbon's emissions CSV.
+Wraps a single function call `.f(.data, ...)` in a CodeCarbon task, so each
+step is measured on its own and one tracker can be reused for every step of
+a pipeline.
 }
 \details{
-This is robust across CodeCarbon versions where `tracker$stop()` returns only
-a numeric (kgCO2) rather than a full data object.
+Steps are not written to the emissions CSV as they run. CodeCarbon writes
+the run total, and one row per step to `emissions_base_<run_id>.csv`, when
+the tracker is stopped with [tracker_stop()].
 }
