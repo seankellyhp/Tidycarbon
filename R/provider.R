@@ -18,12 +18,14 @@
 #'   cache tokens contribute nothing, so the estimate prices output
 #'   generation, not "the impact of the conversation".
 #' * **Figures are ranges** (`*_min` / `*_max`) whenever the provider does not
-#'   publish its model's architecture. A published one gives `min == max`.
+#'   publish its model's architecture or its datacenter's efficiency.
 #'   `*_mean` is the midpoint of the range, not a measured average.
 #' * **Latency can only lower the estimate.** An unknown latency (`NA`) leaves
 #'   the modelled generation time uncapped.
-#' * **Models newer than the EcoLogits release** are computed as the nearest
-#'   registered model of the same family; the `resolution` column says so.
+#' * **Which models can be estimated is EcoLogits' decision.** The model name
+#'   is looked up in its registry as the client recorded it. One it has not
+#'   registered (often a model newer than the installed release) is left out,
+#'   with `modelled = FALSE` and the EcoLogits error code in `error`.
 #' * **Never add these figures to CodeCarbon's**, and never divide local energy
 #'   by tokens. Different scopes, different methods.
 #'
@@ -36,7 +38,8 @@ NULL
 #' @keywords internal
 provider_module <- function() {
   if (is.null(.provider_env$mod)) {
-    reticulate::py_require("ecologits")
+    # EcoLogits declares pydantic >= 1.9 but imports names that only exist in 2.
+    reticulate::py_require(c("ecologits", "pydantic>=2"))
     path <- system.file("python", package = "tidycarbon")
     if (!nzchar(path)) rlang::abort("Cannot find tidycarbon's inst/python directory.")
     .provider_env$mod <- reticulate::import_from_path("tidycarbon_provider", path = path)
@@ -58,11 +61,13 @@ py_col <- function(x, type) {
 #' directly for clients other than ellmer (rollama, httr2, ...), passing the
 #' `usage` counts the API returned.
 #'
-#' @param model Model name as the client recorded it, e.g. `"claude-sonnet-4-5"`,
-#'   `"openai/gpt-4o"`, `"us.anthropic.claude-opus-4-1-20250805-v1:0"`.
+#' @param model Model name as the provider's API names it, e.g.
+#'   `"claude-sonnet-4-5"` or `"gpt-4o"`. It is passed to EcoLogits unchanged.
 #' @param output_tokens Output tokens billed for the request.
-#' @param provider Optional provider hint (`"anthropic"`, `"openai"`, ...),
-#'   used when the model string does not name one.
+#' @param provider Provider that served the request: `"anthropic"`, `"openai"`,
+#'   `"mistralai"`, `"google_genai"`, `"cohere"` or `"huggingface_hub"`, or the
+#'   name ellmer gives it (`"Google/Gemini"`). With `"OpenRouter"`, the
+#'   provider is read from the model id instead (`"openai/gpt-4o"`).
 #' @param input_tokens,cache_read,cache_write Uncached input, cache-read and
 #'   cache-write input tokens. Reported by [carbon_tokens()]; not used by the
 #'   EcoLogits estimate.
@@ -201,9 +206,12 @@ carbon_tokens <- function(calls) {
 #' @param zone Optional electricity-mix zone (e.g. `"FRA"`) charged to every
 #'   provider. Default `NULL` charges each provider to its own datacenter
 #'   location as EcoLogits records it.
-#' @return The calls tibble with `provider` normalised and the columns
-#'   `resolved_model`, `resolution`, `modelled`, `grid_zone`, and the lower
-#'   bound, mean and upper bound `energy_kwh_min/mean/max`,
+#' @return The calls tibble with `provider` as the EcoLogits provider id and
+#'   the columns `modelled`, `error` (the
+#'   [EcoLogits error code](https://ecologits.ai/latest/tutorial/warnings_and_errors/)
+#'   of an unmodelled request, e.g. `"model-not-registered"`, else `NA`),
+#'   `warnings` (its warning codes, comma-separated, else `NA`), `grid_zone`,
+#'   and the lower bound, mean and upper bound `energy_kwh_min/mean/max`,
 #'   `gwp_kg_min/mean/max`, `water_l_min/mean/max`, `pe_mj_min/mean/max`,
 #'   `adpe_kgsb_min/mean/max`. The mean is the midpoint of the range.
 #'   Unmodelled rows have `NA` impacts.
@@ -211,8 +219,8 @@ carbon_tokens <- function(calls) {
 carbon_provider <- function(calls, zone = NULL) {
   n <- nrow(calls)
   if (n == 0) {
-    cols <- list(provider = list(), resolved_model = list(), resolution = list(),
-                 modelled = list(), grid_zone = list())
+    cols <- list(provider = list(), modelled = list(), error = list(),
+                 warnings = list(), grid_zone = list())
     for (i in c("energy", "gwp", "adpe", "pe", "wcf")) {
       cols[[paste0(i, "_min")]] <- list()
       cols[[paste0(i, "_max")]] <- list()
@@ -231,13 +239,13 @@ carbon_provider <- function(calls, zone = NULL) {
     x[is.nan(x)] <- NA_real_
     x
   }
-  calls$provider       <- py_col(cols$provider, character())
-  calls$resolved_model <- dplyr::na_if(py_col(cols$resolved_model, character()), "")
-  calls$resolution     <- py_col(cols$resolution, character())
-  calls$modelled       <- py_col(cols$modelled, logical())
-  calls$grid_zone      <- dplyr::na_if(py_col(cols$grid_zone, character()), "")
-  # The mean is the midpoint of the range, so it equals both bounds when the
-  # provider publishes its architecture.
+  calls$provider  <- py_col(cols$provider, character())
+  calls$modelled  <- py_col(cols$modelled, logical())
+  calls$error     <- dplyr::na_if(py_col(cols$error, character()), "")
+  calls$warnings  <- dplyr::na_if(py_col(cols$warnings, character()), "")
+  calls$grid_zone <- dplyr::na_if(py_col(cols$grid_zone, character()), "")
+  # The mean is the midpoint of the range, so it equals both bounds when
+  # EcoLogits returns a single value.
   units <- c(energy = "energy_kwh", gwp = "gwp_kg", wcf = "water_l", pe = "pe_mj", adpe = "adpe_kgsb")
   for (i in names(units)) {
     lo <- num(paste0(i, "_min"))
@@ -257,8 +265,8 @@ carbon_provider <- function(calls, zone = NULL) {
 #' counted but not summed.
 #'
 #' @param x Output of [carbon_provider()].
-#' @param by `"total"` for one row, or `"model"` for one row per model and
-#'   how it was resolved.
+#' @param by `"total"` for one row, or `"model"` for one row per provider and
+#'   model.
 #' @return A tibble with `calls`, `n_modelled`, `output_tokens`,
 #'   `output_tokens_unmodelled`, and summed `*_min` / `*_mean` / `*_max`
 #'   impact columns.
@@ -266,7 +274,7 @@ carbon_provider <- function(calls, zone = NULL) {
 carbon_provider_summary <- function(x, by = c("total", "model")) {
   by <- match.arg(by)
   impact_cols <- grep("_(min|mean|max)$", names(x), value = TRUE)
-  groups <- if (by == "model") c("provider", "model", "resolved_model", "resolution") else character()
+  groups <- if (by == "model") c("provider", "model", "error") else character()
 
   x |>
     dplyr::group_by(dplyr::across(dplyr::all_of(groups))) |>

@@ -16,13 +16,15 @@ carbon_calls(
 )
 }
 \arguments{
-\item{model}{Model name as the client recorded it, e.g. `"claude-sonnet-4-5"`,
-`"openai/gpt-4o"`, `"us.anthropic.claude-opus-4-1-20250805-v1:0"`.}
+\item{model}{Model name as the provider's API names it, e.g.
+`"claude-sonnet-4-5"` or `"gpt-4o"`. It is passed to EcoLogits unchanged.}
 
 \item{output_tokens}{Output tokens billed for the request.}
 
-\item{provider}{Optional provider hint (`"anthropic"`, `"openai"`, ...),
-used when the model string does not name one.}
+\item{provider}{Provider that served the request: `"anthropic"`, `"openai"`,
+`"mistralai"`, `"google_genai"`, `"cohere"` or `"huggingface_hub"`, or the
+name ellmer gives it (`"Google/Gemini"`). With `"OpenRouter"`, the
+provider is read from the model id instead (`"openai/gpt-4o"`).}
 
 \item{input_tokens, cache_read, cache_write}{Uncached input, cache-read and
 cache-write input tokens. Reported by [carbon_tokens()]; not used by the

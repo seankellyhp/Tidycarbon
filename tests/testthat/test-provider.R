@@ -7,63 +7,71 @@ skip_if_no_ecologits <- function() {
   if (!ok) skip("ecologits not available through reticulate")
 }
 
-test_that("split_model reads every client spelling", {
+test_that("the provider comes from the client, or from an OpenRouter model id", {
   skip_if_no_ecologits()
-  split <- function(x) unlist(provider_module()$split_model(x))
+  split <- function(p, m) unlist(provider_module()$split_model(p, m))
 
-  expect_equal(split("claude-opus-5"), c("anthropic", "claude-opus-5"))
-  expect_equal(split("anthropic/claude-sonnet-4-5"), c("anthropic", "claude-sonnet-4-5"))
-  expect_equal(split("openrouter/anthropic/claude-sonnet-4-5"), c("anthropic", "claude-sonnet-4-5"))
-  expect_equal(split("us.anthropic.claude-opus-4-1-20250805-v1:0"),
-               c("anthropic", "claude-opus-4-1-20250805"))
-  expect_equal(split("gpt-3.5-turbo"), c("", "gpt-3.5-turbo"))
+  expect_equal(split("OpenAI", "gpt-4o"), c("openai", "gpt-4o"))
+  expect_equal(split("Google/Gemini", "gemini-2.5-flash"), c("google_genai", "gemini-2.5-flash"))
+  expect_equal(split("OpenRouter", "openai/gpt-4o"), c("openai", "gpt-4o"))
+  expect_equal(split("OpenRouter", "meta-llama/llama-3.1-8b-instruct"),
+               c("", "meta-llama/llama-3.1-8b-instruct"))
+  # Only OpenRouter's ids are split.
+  expect_equal(split("", "anthropic/claude-sonnet-4-5"), c("", "anthropic/claude-sonnet-4-5"))
+  # A known provider's model name is never rewritten.
+  expect_equal(split("HuggingFace", "meta-llama/Meta-Llama-3.1-8B-Instruct"),
+               c("huggingface_hub", "meta-llama/Meta-Llama-3.1-8B-Instruct"))
+  expect_equal(split("", "claude-sonnet-4-5"), c("", "claude-sonnet-4-5"))
 })
 
-test_that("provider hint fills in a bare model name", {
-  skip_if_no_ecologits()
-  norm <- function(h, m) unlist(provider_module()$normalize(h, m))
-  expect_equal(norm("OpenAI", "gpt-4o"), c("openai", "gpt-4o"))
-  expect_equal(norm("Google/Gemini", "gemini-2.0-flash"), c("google_genai", "gemini-2.0-flash"))
-  expect_equal(norm("OpenAI", "anthropic/claude-sonnet-4-5"), c("anthropic", "claude-sonnet-4-5"))
-})
-
-test_that("carbon_provider estimates per request and names each resolution", {
+test_that("carbon_provider estimates per request and reports EcoLogits' errors", {
   skip_if_no_ecologits()
   calls <- carbon_calls(
-    model         = c("claude-sonnet-4-5", "claude-opus-99", "not-a-model", "claude-sonnet-4-5"),
-    output_tokens = c(500, 500, 500, NA),
-    latency_s     = c(NA, 30, NA, NA)
+    model         = c("claude-sonnet-4-5", "claude-opus-99", "claude-sonnet-4-5", "claude-sonnet-4-5"),
+    output_tokens = c(500, 500, NA, 500),
+    provider      = c("anthropic", "anthropic", "anthropic", ""),
+    latency_s     = c(30, NA, NA, NA)
   )
   x <- carbon_provider(calls)
 
   expect_equal(nrow(x), 4)
-  expect_equal(x$modelled, c(TRUE, TRUE, FALSE, FALSE))
-  expect_equal(x$resolution[1], "exact")
-  expect_match(x$resolution[2], "^proxy: nearest registered opus")
-  expect_equal(x$resolution[4], "no output token count")
-  expect_true(all(is.na(x$energy_kwh_min[3:4])))
-  expect_true(all(x$energy_kwh_min[1:2] > 0))
-  expect_true(all(x$energy_kwh_max[1:2] >= x$energy_kwh_min[1:2]))
+  expect_equal(x$modelled, c(TRUE, FALSE, FALSE, FALSE))
+  expect_equal(x$error, c(NA, "model-not-registered", "missing-output-tokens", "model-not-registered"))
+  expect_match(x$warnings[1], "model-arch-not-released")
+  expect_true(all(is.na(x$energy_kwh_min[2:4])))
+  expect_true(x$energy_kwh_min[1] > 0)
+  expect_true(x$energy_kwh_max[1] >= x$energy_kwh_min[1])
   expect_equal(x$energy_kwh_mean, (x$energy_kwh_min + x$energy_kwh_max) / 2)
-  expect_equal(x$grid_zone[1:2], rep(x$grid_zone[1], 2))
+  expect_equal(x$grid_zone, c("USA", NA, NA, NA))
 })
 
-test_that("a router's dotted version resolves to the provider's hyphenated one", {
+test_that("carbon_provider returns what EcoLogits returns", {
   skip_if_no_ecologits()
-  x <- carbon_provider(carbon_calls(
-    model = c("anthropic/claude-haiku-4.5", "anthropic/claude-opus-99.1", "openai/gpt-4.1"),
-    output_tokens = 100
-  ))
-  expect_equal(x$resolved_model, c("claude-haiku-4-5", x$resolved_model[2], "gpt-4.1"))
-  expect_equal(x$resolution[c(1, 3)], c("exact", "exact"))
-  expect_match(x$resolution[2], "^proxy: nearest registered opus")
+  x <- carbon_provider(carbon_calls("gpt-4o", 250, provider = "OpenAI", latency_s = 2))
+  ref <- reticulate::import("ecologits.tracers.utils")$llm_impacts(
+    provider = "openai", model_name = "gpt-4o",
+    output_token_count = 250L, request_latency = 2
+  )
+  expect_equal(x$provider, "openai")
+  expect_equal(x$energy_kwh_min, ref$energy$value$min)
+  expect_equal(x$energy_kwh_max, ref$energy$value$max)
+  expect_equal(x$gwp_kg_max, ref$gwp$value$max)
+  expect_equal(x$water_l_min, ref$wcf$value$min)
+})
+
+test_that("an unregistered zone is an EcoLogits error, not a silent NA", {
+  skip_if_no_ecologits()
+  calls <- carbon_calls("claude-sonnet-4-5", 100, provider = "anthropic")
+  expect_equal(carbon_provider(calls, zone = "FR")$error, "zone-not-registered")
+  expect_equal(carbon_provider(calls, zone = "FRA")$grid_zone, "FRA")
 })
 
 test_that("carbon_provider_summary sums bound-wise and reports the unmodelled", {
   skip_if_no_ecologits()
   x <- carbon_provider(carbon_calls(
     model = c("claude-sonnet-4-5", "claude-sonnet-4-5", "not-a-model"),
-    output_tokens = c(100, 300, 50)
+    output_tokens = c(100, 300, 50),
+    provider = "anthropic"
   ))
   s <- carbon_provider_summary(x)
 

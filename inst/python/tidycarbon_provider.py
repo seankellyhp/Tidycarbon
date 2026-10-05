@@ -17,8 +17,11 @@ EcoLogits models it (https://ecologits.ai/latest/methodology/llm_inference/):
    min(latency, modelled generation time), so an unknown latency is passed as
    infinity and a too-long one changes nothing.
 3. Every figure is a range whenever the provider does not publish its model's
-   architecture. A provider that does publish gets a scalar; both are returned
-   here as a (min, max) pair, equal for a scalar.
+   architecture or its datacenter's PUE / WUE. EcoLogits returns a scalar
+   otherwise; both are returned here as a (min, max) pair, equal for a scalar.
+4. Which models exist is EcoLogits' call. The model name goes to its registry
+   as recorded; one it has not registered is reported as its
+   `model-not-registered` error, never approximated by another model.
 
 Estimation is per request, never on token totals: the model is non-linear in
 model, output length and latency, so one calculation over the totals is a
@@ -36,17 +39,15 @@ from __future__ import annotations
 import json
 import logging
 import math
-import re
 from datetime import datetime, timezone
 
 from ecologits.log import logger as _ecologits_logger
-from ecologits.model_repository import models as _registry
 from ecologits.tracers.utils import PROVIDER_CONFIG_MAP, llm_impacts
 from ecologits.utils.range_value import RangeValue
 
 # EcoLogits warns the first time it meets an unregistered model or an
-# unreleased architecture. Both are normal here and both are reported in the
-# `resolution` column, so keep them off the R console.
+# unreleased architecture. Both are normal here and both are reported per
+# request, in the `error` and `warnings` columns, so keep them off the R console.
 _ecologits_logger.setLevel(logging.ERROR)
 
 try:
@@ -56,145 +57,51 @@ try:
 except Exception:  # pragma: no cover
     VERSION = "?"
 
+# What a client calls its provider -> the EcoLogits provider id. EcoLogits
+# normally knows the provider from the SDK it instruments; here the R client
+# only has a display name ("Google/Gemini"), so this lookup is the one piece of
+# translation the wrapper has to own.
 PROVIDERS = {
     "anthropic": "anthropic",
     "claude": "anthropic",
     "openai": "openai",
     "azure": "openai",
+    "azure/openai": "openai",
     "mistral": "mistralai",
     "mistralai": "mistralai",
     "cohere": "cohere",
     "google": "google_genai",
+    "google/gemini": "google_genai",
     "google_genai": "google_genai",
     "gemini": "google_genai",
     "huggingface": "huggingface_hub",
+    "hugging face": "huggingface_hub",
     "huggingface_hub": "huggingface_hub",
 }
 
 IMPACTS = ("energy", "gwp", "adpe", "pe", "wcf")
 
 
-# --------------------------------------------------------------------------- #
-# model resolution
-# --------------------------------------------------------------------------- #
+def provider_id(name: str) -> str:
+    """EcoLogits provider id for a client's provider name, or ""."""
+    return PROVIDERS.get((name or "").strip().lower(), "")
 
 
-def split_model(raw: str) -> tuple[str, str]:
-    """(EcoLogits provider, bare model name) from whatever a client recorded.
+def split_model(provider: str, model: str) -> tuple[str, str]:
+    """(EcoLogits provider, model name) to look up, with no guessing.
 
-    Harnesses and routers each qualify a model differently, and the qualifier is
-    not always the provider that actually served it, so scan every segment and
-    take the last one EcoLogits recognises:
-
-        claude-opus-5                               Claude Code
-        anthropic/claude-sonnet-4-5                 pi
-        openrouter/anthropic/claude-sonnet-4-5      a router in front of it
-        us.anthropic.claude-opus-4-1-20250805-v1:0  Bedrock
-
-    A dotted name is only split when one of its segments is a known provider,
-    so a model whose own name contains a dot (`gpt-3.5-turbo`) survives intact.
+    The model name is passed to EcoLogits exactly as the client recorded it:
+    whether it is registered is EcoLogits' decision, not ours. The one
+    exception is OpenRouter, which is not a provider itself and writes the
+    provider into the model id - `openai/gpt-4o`. Other routers are left
+    alone: how they spell a model id is not something to guess at.
     """
-    s = (raw or "").strip()
-    prefix: list[str] = []
-    if "/" in s:
-        *head, s = s.split("/")
-        prefix += head
-    if "." in s:
-        head, _, tail = s.rpartition(".")
-        segments = head.split(".")
-        if any(seg in PROVIDERS for seg in segments):
-            prefix += segments
-            s = tail
-    s = re.sub(r"-v\d+(:\d+)?$", "", s)
-    provider = next((PROVIDERS[seg] for seg in reversed(prefix) if seg in PROVIDERS), "")
-    if not provider and s.startswith("claude"):
-        provider = "anthropic"
-    return provider, s
-
-
-def normalize(hint: str, raw_model: str) -> tuple[str, str]:
-    """split_model(), falling back to a client-supplied provider hint.
-
-    The hint is what the R client calls its provider ("Anthropic",
-    "Google/Gemini", "OpenAI"); the model string wins when it names one.
-    """
-    provider, bare = split_model(raw_model)
-    if not provider and hint:
-        for seg in re.split(r"[/\s:_-]+", hint.lower()):
-            if seg in PROVIDERS:
-                provider = PROVIDERS[seg]
-                break
-        else:
-            if hint.lower() in PROVIDERS:
-                provider = PROVIDERS[hint.lower()]
-    return provider, bare
-
-
-def version_key(name: str) -> tuple[str, tuple[int, ...]] | None:
-    """('claude-opus', (4, 1)) for 'claude-opus-4-1-20250805'.
-
-    The trailing 8-digit date stamp is not part of the version; anything
-    non-numeric ends it.
-    """
-    parts = name.split("-")
-    if len(parts) < 3:
-        return None
-    ver: list[int] = []
-    for p in parts[2:]:
-        if p.isdigit() and len(p) != 8:
-            ver.append(int(p))
-        else:
-            break
-    if not ver:
-        return None
-    return "-".join(parts[:2]), tuple(ver)
-
-
-def _registered(provider: str) -> list[str]:
-    return [m.name for m in _registry.list_models() if m.provider.value == provider]
-
-
-def resolve(provider: str, name: str) -> tuple[str, str | None, str]:
-    """(provider, registry model to compute with, how we got there).
-
-    Clients run models newer than any EcoLogits release knows about, so an
-    exact-match-only policy would report nothing for many real calls. Instead
-    fall back to the nearest registered model of the same family - the closest
-    published architecture. It is an assumption, so it is named in the
-    `resolution` column of every row it affects.
-    """
-    if not provider:
-        # A bare model name ("gpt-4o") still resolves, as long as exactly one
-        # provider in the registry claims that name.
-        owners = {m.provider.value for m in _registry.list_models() if m.name == name}
-        if len(owners) != 1:
-            return "", None, "no provider"
-        provider = owners.pop()
-        return provider, name, f"exact, provider inferred as {provider}"
-    if _registry.find_model(provider=provider, model_name=name) is not None:
-        return provider, name, "exact"
-    # Routers write a version with a dot where the provider uses a hyphen
-    # (OpenRouter: claude-haiku-4.5).
-    if "." in name:
-        name = name.replace(".", "-")
-        if _registry.find_model(provider=provider, model_name=name) is not None:
-            return provider, name, "exact"
-
-    key = version_key(name)
-    if key is None:
-        return provider, None, "unregistered"
-    stem, want = key
-    family = []
-    for cand in _registered(provider):
-        ck = version_key(cand)
-        if ck and ck[0] == stem:
-            family.append((ck[1], cand))
-    if not family:
-        return provider, None, "unregistered"
-    family.sort()
-    below = [c for c in family if c[0] <= want]
-    _, cand = below[-1] if below else family[0]
-    return provider, cand, f"proxy: nearest registered {stem.split('-')[-1]}"
+    if (provider or "").strip().lower() == "openrouter":
+        head, sep, tail = model.partition("/")
+        if sep and provider_id(head):
+            return provider_id(head), tail
+        return "", model
+    return provider_id(provider), model
 
 
 # --------------------------------------------------------------------------- #
@@ -219,15 +126,16 @@ def estimate(providers: list, models: list, output_tokens: list, latencies: list
     """One EcoLogits computation per request; returns a dict of columns.
 
     Impacts are in EcoLogits' units: energy kWh, gwp kgCO2eq, adpe kgSbeq,
-    pe MJ, wcf L. A request that cannot be matched to a registered model, or
-    has no output token count, comes back with modelled = False and NaN impacts.
+    pe MJ, wcf L. A request EcoLogits returns an error for (a model or zone it
+    has not registered) comes back with modelled = False, NaN impacts and the
+    EcoLogits error code in `error`. `warnings` holds its warning codes.
     """
     zone = zone or None
     cols: dict[str, list] = {
         "provider": [],
-        "resolved_model": [],
-        "resolution": [],
         "modelled": [],
+        "error": [],
+        "warnings": [],
         "grid_zone": [],
     }
     for name in IMPACTS:
@@ -235,30 +143,28 @@ def estimate(providers: list, models: list, output_tokens: list, latencies: list
         cols[f"{name}_max"] = []
 
     for hint, raw, out, lat in zip(providers, models, output_tokens, latencies):
-        provider, bare = normalize(hint or "", raw or "")
-        provider, resolved, how = resolve(provider, bare)
+        provider, model = split_model(hint or "", raw or "")
         impacts = None
-        if resolved and _missing(out):
-            how = "no output token count"
-        elif resolved:
+        if _missing(out):
+            # Not an EcoLogits code: it has no notion of a missing count.
+            error = "missing-output-tokens"
+        else:
             # None/NaN -> infinity, i.e. "do not cap the modelled generation
             # time". Latency can only ever shrink the estimate.
             impacts = llm_impacts(
                 provider=provider,
-                model_name=resolved,
+                model_name=model,
                 output_token_count=int(out),
                 request_latency=math.inf if _missing(lat) else float(lat),
                 electricity_mix_zone=zone,
             )
-            if impacts is not None and impacts.has_errors:
-                how = f"{how}; ecologits error"
-                impacts = None
-        ok = impacts is not None
+            error = ",".join(e.code for e in impacts.errors) if impacts.has_errors else ""
+        ok = impacts is not None and not error
         cfg = PROVIDER_CONFIG_MAP.get(provider)
-        cols["provider"].append(provider)
-        cols["resolved_model"].append(resolved or "")
-        cols["resolution"].append(how)
+        cols["provider"].append(provider or hint or "")
         cols["modelled"].append(ok)
+        cols["error"].append(error)
+        cols["warnings"].append(",".join(w.code for w in impacts.warnings) if ok and impacts.has_warnings else "")
         cols["grid_zone"].append(zone or (cfg.datacenter_location if cfg else "") if ok else "")
         for name in IMPACTS:
             lo, hi = _bounds(getattr(impacts, name, None)) if ok else (math.nan, math.nan)
@@ -341,7 +247,7 @@ def read_claude_code(path: str, start: str | None = None, end: str | None = None
 
             call = {
                 "ts": ts.isoformat(),
-                "provider": "",
+                "provider": "anthropic",
                 "model": msg.get("model") or "unknown",
                 "input_tokens": int(usage.get("input_tokens") or 0),
                 "cache_read": int(usage.get("cache_read_input_tokens") or 0),

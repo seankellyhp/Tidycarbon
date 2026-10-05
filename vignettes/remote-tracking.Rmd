@@ -144,24 +144,25 @@ midpoint of the range, for when you need a single figure.
 
 ## Look at the individual requests
 
-The `calls` list-column holds one row per request, including how the model
-name was matched to one EcoLogits knows:
+The `calls` list-column holds one row per request, including whether
+EcoLogits could model it:
 
 ```{r}
 res$calls[[1]] |>
-  select(provider, model, resolved_model, resolution,
+  select(provider, model, modelled, error,
          input_tokens, output_tokens, latency_s, grid_zone)
 #> # A tibble: 1 × 8
-#>   provider model     resolved_model resolution input_tokens output_tokens latency_s grid_zone
-#>   <chr>    <chr>     <chr>          <chr>             <dbl>         <dbl>     <dbl> <chr>
-#> 1 openai   openai/g… gpt-6-luna     exact               193           141      4.89 USA
+#>   provider model             modelled error input_tokens output_tokens latency_s grid_zone
+#>   <chr>    <chr>             <lgl>    <chr>        <dbl>         <dbl>     <dbl> <chr>
+#> 1 openai   openai/gpt-6-luna TRUE     NA             193           141      4.89 USA
 ```
 
-Always check `resolution`. `"exact"` means the model is in the EcoLogits
-registry. A model it does not know is either computed as the nearest model of
-the same family (`"proxy: ..."`) or left out (`modelled = FALSE`, impacts
-`NA`), and `n_modelled` in the summary row tells you how many requests were
-actually estimated.
+Always check `modelled`. The model name is looked up in the EcoLogits registry
+exactly as the client recorded it. A model EcoLogits has not registered, often
+one newer than the installed release, is left out (`modelled = FALSE`, impacts
+`NA`, and `error` holds the EcoLogits code `"model-not-registered"`), and
+`n_modelled` in the summary row tells you how many requests were actually
+estimated.
 
 ## Compare two prompting strategies
 

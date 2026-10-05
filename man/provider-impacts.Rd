@@ -23,12 +23,14 @@ Caveats, carried into every result:
   cache tokens contribute nothing, so the estimate prices output
   generation, not "the impact of the conversation".
 * **Figures are ranges** (`*_min` / `*_max`) whenever the provider does not
-  publish its model's architecture. A published one gives `min == max`.
+  publish its model's architecture or its datacenter's efficiency.
   `*_mean` is the midpoint of the range, not a measured average.
 * **Latency can only lower the estimate.** An unknown latency (`NA`) leaves
   the modelled generation time uncapped.
-* **Models newer than the EcoLogits release** are computed as the nearest
-  registered model of the same family; the `resolution` column says so.
+* **Which models can be estimated is EcoLogits' decision.** The model name
+  is looked up in its registry as the client recorded it. One it has not
+  registered (often a model newer than the installed release) is left out,
+  with `modelled = FALSE` and the EcoLogits error code in `error`.
 * **Never add these figures to CodeCarbon's**, and never divide local energy
   by tokens. Different scopes, different methods.
 }

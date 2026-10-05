@@ -9,8 +9,8 @@ carbon_provider_summary(x, by = c("total", "model"))
 \arguments{
 \item{x}{Output of [carbon_provider()].}
 
-\item{by}{`"total"` for one row, or `"model"` for one row per model and
-how it was resolved.}
+\item{by}{`"total"` for one row, or `"model"` for one row per provider and
+model.}
 }
 \value{
 A tibble with `calls`, `n_modelled`, `output_tokens`,

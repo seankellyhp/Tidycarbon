@@ -105,7 +105,7 @@ summarise_text <- function(text) chat$chat(paste("Summarise:", text))
 
 res <- carbon_track(summarise_text, text = my_text, tracker = tracker)
 res              # one row: result, energy / CO2e / water as lower and upper bounds
-res$calls[[1]]   # one row per request: tokens, model, how it was resolved
+res$calls[[1]]   # one row per request: tokens, model, whether it was modelled
 ```
 
 `carbon_track_all()`, `carbon_run()`, `carbon_step()` (with `carbon_collect()`) and `tracker_start()` / `tracker_stop()` accept the same tracker. To measure your machine and the provider over the same code, open one tracker globally and pass the other:
@@ -141,7 +141,7 @@ How to read these numbers:
 - **They are estimates, not measurements.** EcoLogits models inference from each model's size and output length; nothing is measured at the provider.
 - **Only output tokens count.** Input and cached tokens do not enter the EcoLogits model, so a long prompt adds nothing to the estimate.
 - **Figures are ranges** (`*_min` / `*_max`) whenever a provider does not publish its model's size, which is the usual case for closed models. `*_mean` is the midpoint of that range.
-- **Newer models are approximated.** A model EcoLogits does not know yet is computed as the nearest known model of the same family; the `resolution` column says so on every row.
+- **Only models EcoLogits knows are estimated.** The model name is looked up in the EcoLogits registry as is. One it has not registered, often a model newer than the installed release, is left out (`modelled = FALSE`, with the EcoLogits error code in `error`) rather than approximated.
 - **Never add them to CodeCarbon's figures.** One is your machine, measured; the other is the provider's datacenter, modelled. Each tracker returns its own table for that reason.
 
 EcoLogits is installed automatically through reticulate the first time a provider function is used.

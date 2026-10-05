@@ -14,9 +14,12 @@ provider. Default `NULL` charges each provider to its own datacenter
 location as EcoLogits records it.}
 }
 \value{
-The calls tibble with `provider` normalised and the columns
-  `resolved_model`, `resolution`, `modelled`, `grid_zone`, and the lower
-  bound, mean and upper bound `energy_kwh_min/mean/max`,
+The calls tibble with `provider` as the EcoLogits provider id and
+  the columns `modelled`, `error` (the
+  [EcoLogits error code](https://ecologits.ai/latest/tutorial/warnings_and_errors/)
+  of an unmodelled request, e.g. `"model-not-registered"`, else `NA`),
+  `warnings` (its warning codes, comma-separated, else `NA`), `grid_zone`,
+  and the lower bound, mean and upper bound `energy_kwh_min/mean/max`,
   `gwp_kg_min/mean/max`, `water_l_min/mean/max`, `pe_mj_min/mean/max`,
   `adpe_kgsb_min/mean/max`. The mean is the midpoint of the range.
   Unmodelled rows have `NA` impacts.
