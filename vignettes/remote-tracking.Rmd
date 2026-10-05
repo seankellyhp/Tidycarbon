@@ -99,6 +99,11 @@ tracker <- carbon_init_remote(chat, project_name = "sentiment")
 The estimate comes from [EcoLogits](https://ecologits.ai), which is installed
 automatically through reticulate.
 
+Everything the tracker measures is also appended to `emissions_remote.csv`
+in your working directory, one row per window. Change the location with
+`output_dir` and `output_file`, or pass `output_dir = NULL` to write nothing.
+Read it back with `carbon_read(".", "emissions_remote.csv")`.
+
 ## Track the classification
 
 ```{r}

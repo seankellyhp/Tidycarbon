@@ -311,6 +311,12 @@ chat_turn_count <- function(chat) {
 #' @param engine Method used to estimate the impact of each request. Only
 #'   `"ecologits"` ([EcoLogits](https://ecologits.ai)) is available for now.
 #' @param zone Optional electricity-mix zone, as in [carbon_provider()].
+#' @param output_dir Directory where `output_file` will be written
+#'   (default "." --- the project root). `NULL` writes no file.
+#' @param output_file Output CSV name (default "emissions_remote.csv"). Every
+#'   window is appended to it as one row, without the `calls` column. It is
+#'   kept apart from the `emissions_r.csv` of [carbon_init()] because the two
+#'   hold different columns; read it with [carbon_read()].
 #' @return A `remote_tracker`. Its windows return a 1-row tibble with
 #'   `timestamp`, `duration`, the lower bound, mean and upper bound
 #'   `emissions_total_min/mean/max` (kgCO2eq), `energy_consumed_min/mean/max`
@@ -321,7 +327,9 @@ chat_turn_count <- function(chat) {
 carbon_init_remote <- function(chat,
                                project_name = "rtest",
                                engine = c("ecologits"),
-                               zone = NULL) {
+                               zone = NULL,
+                               output_dir = ".",
+                               output_file = "emissions_remote.csv") {
   engine <- match.arg(engine)
   rlang::check_installed(c("ellmer", "S7"), "to track an ellmer chat.")
   chats <- if (inherits(chat, "Chat")) list(chat) else as.list(chat)
@@ -337,6 +345,8 @@ carbon_init_remote <- function(chat,
   self$engine <- engine
   self$engine_version <- version
   self$zone <- zone
+  self$output_dir <- output_dir
+  self$output_file <- output_file
   self$marks <- list()
   # Same interface as a CodeCarbon tracker: a run window and a task window.
   self$start      <- function() remote_mark(self, "run")
@@ -408,9 +418,22 @@ remote_log <- function(tracker, row, task_id, label) {
   )
 }
 
-# carbon_measure() for a remote tracker: the same task window, no CSV artifact.
-remote_measure_task <- function(run, tracker, label, task_id) {
+# Append a remote log row to the tracker's CSV artifact (best-effort), without
+# the per-request `calls` list-column.
+remote_write_artifact <- function(tracker, log, output_dir, output_file) {
+  if (is.null(output_dir)) output_dir <- tracker$output_dir
+  if (is.null(output_file)) output_file <- tracker$output_file
+  if (is.null(output_dir) || is.null(output_file)) return(invisible(NULL))
+  carbon_write_artifact(log[names(log) != "calls"], output_dir, output_file)
+}
+
+# carbon_measure() for a remote tracker: the same task window, logged to the
+# tracker's own CSV artifact.
+remote_measure_task <- function(run, tracker, label, task_id,
+                                output_dir = NULL, output_file = NULL) {
   tracker$start_task()
   result <- run()
-  list(result = result, log = remote_log(tracker, tracker$stop_task(), task_id, label))
+  log <- remote_log(tracker, tracker$stop_task(), task_id, label)
+  remote_write_artifact(tracker, log, output_dir, output_file)
+  list(result = result, log = log)
 }

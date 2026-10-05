@@ -143,7 +143,9 @@ tracker_stop <- function(tracker = carbon_default_tracker(),
   force(tracker)
 
   if (is_remote(tracker)) {
-    return(remote_log(tracker, tracker$stop(), task_id, label))
+    log <- remote_log(tracker, tracker$stop(), task_id, label)
+    remote_write_artifact(tracker, log, output_dir, output_file)
+    return(log)
   }
 
   if (is.null(output_dir)) {

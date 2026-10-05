@@ -188,7 +188,9 @@ test_that("a remote tracker drives carbon_track like a CodeCarbon one", {
   skip_if_no_ecologits()
   f <- fake_chat()
   f$ask(999)                                   # before the window: not counted
-  tracker <- carbon_init_remote(f$chat, project_name = "p")
+  dir <- file.path(tempdir(), "remote-track")
+  unlink(dir, recursive = TRUE)
+  tracker <- carbon_init_remote(f$chat, project_name = "p", output_dir = dir)
 
   res <- carbon_track(function(n) { f$ask(n); f$ask(n) }, n = 200, tracker = tracker)
   expect_equal(nrow(res), 1)
@@ -210,13 +212,21 @@ test_that("a remote tracker drives carbon_track like a CodeCarbon one", {
   ), tracker)
   expect_equal(all$n_calls, c(1, 0))
   expect_equal(all$energy_consumed_max[2], 0)
+
+  # Every window landed in the tracker's own artifact, without `calls`.
+  art <- carbon_read(dir, "emissions_remote.csv")
+  expect_equal(art$n_calls, c(2, 1, 0))
+  expect_equal(art$energy_consumed_max[1], res$energy_consumed_max)
+  expect_false("calls" %in% names(art))
 })
 
 test_that("a remote tracker drives carbon_run, carbon_step and global tracking", {
   skip_if_not_installed("ellmer")
   skip_if_no_ecologits()
   f <- fake_chat()
-  tracker <- carbon_init_remote(f$chat)
+  dir <- file.path(tempdir(), "remote-run")
+  unlink(dir, recursive = TRUE)
+  tracker <- carbon_init_remote(f$chat, output_dir = dir, output_file = "llm.csv")
 
   run <- carbon_run({ f$ask(100); 42 }, tracker = tracker, label = "r")
   expect_equal(run$result, 42)
@@ -239,6 +249,11 @@ test_that("a remote tracker drives carbon_run, carbon_step and global tracking",
   total <- tracker_stop(tracker)
   expect_equal(total$n_calls, 2)
   expect_error(tracker_stop(tracker), "not started")
+  expect_equal(carbon_read(dir, "llm.csv")$label, c("r", "s1", "s2", "session"))
+
+  quiet <- carbon_init_remote(f$chat, output_dir = NULL)
+  carbon_run(f$ask(100), tracker = quiet)
+  expect_equal(nrow(carbon_read(dir, "llm.csv")), 4)
 })
 
 test_that("carbon_init_remote rejects anything that is not a chat", {

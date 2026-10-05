@@ -10,7 +10,8 @@
 #'
 #' @param run A zero-argument function executing the measured code.
 #' A remote tracker from [carbon_init_remote()] goes through the same window,
-#' but its log is the provider-side estimate and no CSV artifact is written.
+#' but its log is the provider-side estimate, appended to the tracker's own CSV
+#' artifact (`emissions_remote.csv` by default).
 #'
 #' @param tracker A CodeCarbon tracker (already resolved by the caller
 #'   default), or a remote tracker.
@@ -27,7 +28,8 @@ carbon_measure <- function(run, tracker, label, task_id, output_dir, output_file
   force(tracker)
 
   if (is_remote(tracker)) {
-    return(remote_measure_task(run, tracker, label, task_id))
+    return(remote_measure_task(run, tracker, label, task_id,
+                               output_dir, output_file))
   }
 
   # Resolve the artifact location (best-effort; no longer required).

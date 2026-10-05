@@ -8,7 +8,9 @@ carbon_init_remote(
   chat,
   project_name = "rtest",
   engine = c("ecologits"),
-  zone = NULL
+  zone = NULL,
+  output_dir = ".",
+  output_file = "emissions_remote.csv"
 )
 }
 \arguments{
@@ -20,6 +22,14 @@ carbon_init_remote(
 `"ecologits"` ([EcoLogits](https://ecologits.ai)) is available for now.}
 
 \item{zone}{Optional electricity-mix zone, as in [carbon_provider()].}
+
+\item{output_dir}{Directory where `output_file` will be written
+(default "." --- the project root). `NULL` writes no file.}
+
+\item{output_file}{Output CSV name (default "emissions_remote.csv"). Every
+window is appended to it as one row, without the `calls` column. It is
+kept apart from the `emissions_r.csv` of [carbon_init()] because the two
+hold different columns; read it with [carbon_read()].}
 }
 \value{
 A `remote_tracker`. Its windows return a 1-row tibble with

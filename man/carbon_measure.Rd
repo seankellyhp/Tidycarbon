@@ -9,7 +9,8 @@ carbon_measure(run, tracker, label, task_id, output_dir, output_file)
 \arguments{
 \item{run}{A zero-argument function executing the measured code.
 A remote tracker from [carbon_init_remote()] goes through the same window,
-but its log is the provider-side estimate and no CSV artifact is written.}
+but its log is the provider-side estimate, appended to the tracker's own CSV
+artifact (`emissions_remote.csv` by default).}
 
 \item{tracker}{A CodeCarbon tracker (already resolved by the caller
 default), or a remote tracker.}
