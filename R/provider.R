@@ -399,11 +399,18 @@ remote_measure <- function(tracker, window) {
   )
 }
 
-# A tracker window as a carbon_run() / carbon_step() log row.
-remote_log <- function(row, task_id, label) {
+# A tracker window as a log row, in the shape carbon_measure() returns.
+remote_log <- function(tracker, row, task_id, label) {
   dplyr::bind_cols(
     tibble::tibble(task_id = task_id, label = label),
     tibble::add_column(row, wall_time_sec = row$duration, .after = "timestamp"),
-    tibble::tibble(output_source = row$engine)
+    tibble::tibble(output_source = row$engine, project_name = tracker$project_name)
   )
+}
+
+# carbon_measure() for a remote tracker: the same task window, no CSV artifact.
+remote_measure_task <- function(run, tracker, label, task_id) {
+  tracker$start_task()
+  result <- run()
+  list(result = result, log = remote_log(tracker, tracker$stop_task(), task_id, label))
 }

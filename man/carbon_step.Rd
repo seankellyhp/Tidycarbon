@@ -8,42 +8,63 @@ carbon_step(
   .data,
   .f,
   ...,
-  tracker,
+  tracker = carbon_default_tracker(),
   label = NULL,
   task_id = uuid::UUIDgenerate(),
   output_dir = NULL,
-  output_file = "emissions.csv"
+  output_file = NULL
 )
 }
 \arguments{
 \item{.data}{Input data (pipe LHS).}
 
-\item{.f}{Function to apply to `.data` (must accept `.data` as first arg).}
+\item{.f}{A function, or an unevaluated call whose first argument slot will
+receive `.data`.}
 
-\item{...}{Passed to `.f`.}
+\item{...}{Passed to `.f` in the function/symbol form (ignored, with a
+warning, in the call form --- supply arguments inside the call instead).}
 
-\item{tracker}{A CodeCarbon tracker from `carbon_init_pipe()`, or a
-remote tracker from [carbon_init_remote()].}
+\item{tracker}{A CodeCarbon tracker, or a remote tracker from
+[carbon_init_remote()]. Defaults to the session tracker registered by
+[carbon_init()].}
 
-\item{label}{Optional human-readable label for the step.}
+\item{label}{Optional human-readable label for the step. Defaults to the
+deparsed `.f`.}
 
 \item{task_id}{Optional UUID string for joining/identification.}
 
-\item{output_dir, output_file}{No longer used; kept so existing calls keep
-working.}
+\item{output_dir}{Directory for the CSV artifact. If NULL, falls back to
+`tracker$output_dir` then the value registered by [carbon_init()]; if none
+resolves, the artifact is skipped.}
+
+\item{output_file}{CSV filename for the artifact. If NULL, falls back to the
+value registered by [carbon_init()] (default "emissions_r.csv").}
 }
 \value{
-The transformed object (result of `.f(.data, ...)`) with a
-  `carbon_log` attribute (tibble). With a remote tracker each row is the
-  provider-side estimate described in [carbon_init_remote()].
+The transformed object with a `carbon_log` attribute (a rich
+  one-row tibble of in-memory emissions data). With a remote tracker each
+  row is the provider-side estimate described in [carbon_init_remote()].
 }
 \description{
-Wraps a single function call `.f(.data, ...)` in a CodeCarbon task, so each
-step is measured on its own and one tracker can be reused for every step of
-a pipeline.
+Wraps a single pipeline step in a CodeCarbon task window
+(`tracker$start_task()` / `tracker$stop_task()`), which returns rich
+emissions data in memory. That data becomes the step's `carbon_log` row and
+is also appended to a CSV as a best-effort artifact (the CSV is never read
+back, so a failed write does not affect the result).
 }
 \details{
-Steps are not written to the emissions CSV as they run. CodeCarbon writes
-the run total, and one row per step to `emissions_base_<run_id>.csv`, when
-the tracker is stopped with [tracker_stop()].
+`.f` can be supplied two ways:
+- **Call form** (slide syntax): `carbon_step(x, tokens_ngrams(n = 1:3))`.
+  The unevaluated call has `.data` inserted as its first argument and is
+  evaluated in the caller's environment.
+- **Function/symbol form**: `carbon_step(x, tokens, remove_punct = TRUE)`,
+  `carbon_step(x, \(d) head(d, 3))`, `carbon_step(x, quanteda::tokens)`.
+  The function is applied as `.f(.data, ...)`.
+}
+\examples{
+\dontrun{
+carbon_init(project_name = "demo")
+out <- (1:10) |> carbon_step(sqrt()) |> carbon_step(sum())
+carbon_collect(out)
+}
 }

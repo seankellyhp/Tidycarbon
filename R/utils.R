@@ -1,3 +1,2 @@
-#' Internal null-coalescing operator
-#' @keywords internal
+# Internal null-coalescing operator
 `%||%` <- function(a, b) if (is.null(a)) b else a

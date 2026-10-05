@@ -6,39 +6,40 @@
 \usage{
 carbon_run(
   expr,
-  tracker,
+  tracker = carbon_default_tracker(),
   label = "pipeline",
   task_id = uuid::UUIDgenerate(),
   output_dir = NULL,
-  output_file = "emissions.csv"
+  output_file = NULL
 )
 }
 \arguments{
 \item{expr}{An expression to evaluate (captured).}
 
-\item{tracker}{A CodeCarbon tracker from `carbon_init_pipe()`, or a
-remote tracker from [carbon_init_remote()].}
+\item{tracker}{A CodeCarbon tracker, or a remote tracker from
+[carbon_init_remote()]. Defaults to the session tracker registered by
+[carbon_init()].}
 
 \item{label}{Optional label for the run.}
 
 \item{task_id}{Optional UUID string.}
 
-\item{output_dir, output_file}{No longer used; kept so existing calls keep
-working.}
+\item{output_dir}{Directory for the CSV artifact. If NULL, falls back to
+`tracker$output_dir` then the value registered by [carbon_init()]; if none
+resolves, the artifact is skipped.}
+
+\item{output_file}{CSV filename for the artifact. If NULL, falls back to the
+value registered by [carbon_init()] (default "emissions_r.csv").}
 }
 \value{
 A list with:
   - `result`: the evaluated expression
-  - `log`: a 1-row tibble with time, energy and emissions, or
-    with a remote tracker the provider-side estimate described in
+  - `log`: a rich one-row tibble of in-memory emissions data, or with a
+    remote tracker the provider-side estimate described in
     [carbon_init_remote()]
 }
 \description{
-Runs an expression inside one CodeCarbon task, so the same tracker can be
-reused for any number of runs and each is measured on its own.
-}
-\details{
-Runs are not written to the emissions CSV as they finish. CodeCarbon writes
-the total, and one row per run to `emissions_base_<run_id>.csv`, when the
-tracker is stopped with [tracker_stop()].
+Runs an expression in a single CodeCarbon task window
+(`tracker$start_task()` / `tracker$stop_task()`). Emissions data is returned
+in memory and also appended to a CSV as a best-effort artifact.
 }

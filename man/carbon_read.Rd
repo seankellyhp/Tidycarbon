@@ -2,18 +2,18 @@
 % Please edit documentation in R/io.R
 \name{carbon_read}
 \alias{carbon_read}
-\title{Read CodeCarbon emissions CSV}
+\title{Read the tidycarbon emissions CSV}
 \usage{
-carbon_read(output_dir, output_file = "emissions.csv")
+carbon_read(output_dir, output_file = "emissions_r.csv")
 }
 \arguments{
 \item{output_dir}{Directory containing the emissions CSV.}
 
-\item{output_file}{CSV filename (default "emissions.csv").}
+\item{output_file}{CSV filename (default "emissions_r.csv").}
 }
 \value{
-A tibble of CodeCarbon records (empty tibble if file missing).
+A tibble of emissions records (empty tibble if file missing).
 }
 \description{
-Read CodeCarbon emissions CSV
+Read the tidycarbon emissions CSV
 }

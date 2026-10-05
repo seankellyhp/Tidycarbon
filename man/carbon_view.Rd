@@ -6,6 +6,13 @@
 \usage{
 carbon_view(use_browser = TRUE)
 }
+\arguments{
+\item{use_browser}{Logical; if `TRUE` (default), open the app in the
+system browser.}
+}
+\value{
+Runs the Shiny app (called for its side effect).
+}
 \description{
 \code{carbon_view} Launches the app to analyze code carbon data with multiples techniques.
 }

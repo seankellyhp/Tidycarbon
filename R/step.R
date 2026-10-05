@@ -11,65 +11,94 @@ carbon_collect <- function(x) {
 
 #' Track emissions for one pipeline step
 #'
-#' Wraps a single function call `.f(.data, ...)` in a CodeCarbon task, so each
-#' step is measured on its own and one tracker can be reused for every step of
-#' a pipeline.
+#' Wraps a single pipeline step in a CodeCarbon task window
+#' (`tracker$start_task()` / `tracker$stop_task()`), which returns rich
+#' emissions data in memory. That data becomes the step's `carbon_log` row and
+#' is also appended to a CSV as a best-effort artifact (the CSV is never read
+#' back, so a failed write does not affect the result).
 #'
-#' Steps are not written to the emissions CSV as they run. CodeCarbon writes
-#' the run total, and one row per step to `emissions_base_<run_id>.csv`, when
-#' the tracker is stopped with [tracker_stop()].
+#' `.f` can be supplied two ways:
+#' - **Call form** (slide syntax): `carbon_step(x, tokens_ngrams(n = 1:3))`.
+#'   The unevaluated call has `.data` inserted as its first argument and is
+#'   evaluated in the caller's environment.
+#' - **Function/symbol form**: `carbon_step(x, tokens, remove_punct = TRUE)`,
+#'   `carbon_step(x, \(d) head(d, 3))`, `carbon_step(x, quanteda::tokens)`.
+#'   The function is applied as `.f(.data, ...)`.
 #'
 #' @param .data Input data (pipe LHS).
-#' @param .f Function to apply to `.data` (must accept `.data` as first arg).
-#' @param ... Passed to `.f`.
-#' @param tracker A CodeCarbon tracker from `carbon_init_pipe()`, or a
-#'   remote tracker from [carbon_init_remote()].
-#' @param label Optional human-readable label for the step.
+#' @param .f A function, or an unevaluated call whose first argument slot will
+#'   receive `.data`.
+#' @param ... Passed to `.f` in the function/symbol form (ignored, with a
+#'   warning, in the call form --- supply arguments inside the call instead).
+#' @param tracker A CodeCarbon tracker, or a remote tracker from
+#'   [carbon_init_remote()]. Defaults to the session tracker registered by
+#'   [carbon_init()].
+#' @param label Optional human-readable label for the step. Defaults to the
+#'   deparsed `.f`.
 #' @param task_id Optional UUID string for joining/identification.
-#' @param output_dir,output_file No longer used; kept so existing calls keep
-#'   working.
+#' @param output_dir Directory for the CSV artifact. If NULL, falls back to
+#'   `tracker$output_dir` then the value registered by [carbon_init()]; if none
+#'   resolves, the artifact is skipped.
+#' @param output_file CSV filename for the artifact. If NULL, falls back to the
+#'   value registered by [carbon_init()] (default "emissions_r.csv").
 #'
-#' @return The transformed object (result of `.f(.data, ...)`) with a
-#'   `carbon_log` attribute (tibble). With a remote tracker each row is the
-#'   provider-side estimate described in [carbon_init_remote()].
+#' @return The transformed object with a `carbon_log` attribute (a rich
+#'   one-row tibble of in-memory emissions data). With a remote tracker each
+#'   row is the provider-side estimate described in [carbon_init_remote()].
+#' @examples
+#' \dontrun{
+#' carbon_init(project_name = "demo")
+#' out <- (1:10) |> carbon_step(sqrt()) |> carbon_step(sum())
+#' carbon_collect(out)
+#' }
 #' @export
 carbon_step <- function(.data,
                         .f,
                         ...,
-                        tracker,
+                        tracker = carbon_default_tracker(),
                         label = NULL,
                         task_id = uuid::UUIDgenerate(),
                         output_dir = NULL,
-                        output_file = "emissions.csv") {
+                        output_file = NULL) {
 
-  stopifnot(is.function(.f))
-  if (is.null(label)) label <- deparse(substitute(.f))
+  expr   <- substitute(.f)
+  caller <- parent.frame()
 
   # Run the upstream steps now: `.data` is a lazy promise, and forcing it inside
   # this step's tracking window would nest the previous step's work in it.
   force(.data)
 
-  if (is_remote(tracker)) {
-    tracker$start()
-    out <- .f(.data, ...)
-    log_row <- remote_log(tracker$stop(), task_id, label)
-    attr(out, "carbon_log") <- dplyr::bind_rows(attr(.data, "carbon_log"), log_row)
-    return(out)
+  # Call form: carbon_step(x, tokens_ngrams(n = 1:3)).
+  # Anonymous functions (`function(x) ...`, `\(x) ...`) parse as calls with
+  # head `function`; namespaced bare functions (`quanteda::tokens`) parse as
+  # calls with head `::`/`:::`. All three must take the function form.
+  call_form <- is.call(expr) &&
+    !identical(expr[[1L]], quote(`function`)) &&
+    !identical(expr[[1L]], quote(`::`)) &&
+    !identical(expr[[1L]], quote(`:::`))
+
+  if (is.null(label)) label <- deparse1(expr)
+
+  if (call_form) {
+    if (...length() > 0) {
+      rlang::warn(
+        "Arguments in `...` are ignored in call form; put them inside the call."
+      )
+    }
+    new_call <- as.call(append(as.list(expr), list(quote(.data)), after = 1L))
+    eval_env <- new.env(parent = caller)
+    assign(".data", .data, envir = eval_env)
+    run <- function() eval(new_call, eval_env)
+  } else {
+    .f <- match.fun(.f)        # forces the promise; symbol & function forms
+    run <- function() .f(.data, ...)
   }
 
-  task_start(tracker, task_id)
+  m <- carbon_measure(run, tracker, label, task_id, output_dir, output_file)
 
-  t0 <- Sys.time()
-  out <- tryCatch(
-    .f(.data, ...),
-    error = function(e) { tracker$stop_task(); stop(e) }
-  )
-  wall_time_sec <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
-
-  log_row <- task_log(tracker$stop_task(), task_id, label, wall_time_sec)
-
+  out <- m$result
   prev <- attr(.data, "carbon_log")
-  attr(out, "carbon_log") <- dplyr::bind_rows(prev, log_row)
+  attr(out, "carbon_log") <- dplyr::bind_rows(prev, m$log)
 
   out
 }

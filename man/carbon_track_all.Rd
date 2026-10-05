@@ -2,19 +2,32 @@
 % Please edit documentation in R/tidycarbon_core.R
 \name{carbon_track_all}
 \alias{carbon_track_all}
-\title{Track Emissions for a list of functions}
+\title{Track emissions for a list of function calls}
 \usage{
-carbon_track_all(tasks, tracker)
+carbon_track_all(
+  tasks,
+  tracker = carbon_default_tracker(),
+  output_dir = NULL,
+  output_file = NULL
+)
 }
 \arguments{
-\item{tasks}{list of functions and arguments like list(fun = function, args = list(a = 1, b = 2)).
-Name the list to label the tasks in the `fun` column.}
+\item{tasks}{A list of specs: `list(fun = <function>, args = <list>,
+label = <optional string>)`.}
 
-\item{tracker}{A CodeCarbon or remote tracker, as in [carbon_track()]}
+\item{tracker}{A CodeCarbon tracker, or a remote tracker from
+[carbon_init_remote()]. Defaults to the session tracker registered by
+[carbon_init()].}
+
+\item{output_dir, output_file}{Passed to [carbon_track()] for the CSV
+artifact.}
 }
 \value{
-A tibble of function results and emissions
+A tibble with one row per task, as returned by [carbon_track()].
 }
 \description{
-Track Emissions for a list of functions
+Maps [carbon_track()] over a list of function+args specs, e.g.
+`list(list(fun = head, args = list(n = 3), label = "head3"), ...)`.
+`label` is optional per spec: without one, a task is labelled by its name
+in `tasks`, else by the name of its function.
 }

@@ -60,48 +60,50 @@ Create a tracker with `carbon_init()`, start it, run your code, and stop it.
 Nothing in between needs to change:
 
 ```{r}
-tracker <- carbon_init(project_name = "austen", measure_power_secs = 1)
+carbon_init(project_name = "austen")
 
-tracker_start(tracker)
+tracker_start()
 word_counts <- count_words(books)
-emissions <- tracker_stop(tracker)
+emissions <- tracker_stop()
 
-emissions
-#> [1] 6.157096e-06
+emissions |> select(label, wall_time_sec, energy_consumed, emissions_total)
+#> # A tibble: 1 × 4
+#>   label   wall_time_sec energy_consumed emissions_total
+#>   <chr>           <dbl>           <dbl>           <dbl>
+#> 1 session          3.88       0.0000124      0.00000472
 ```
 
-`tracker_stop()` returns the emissions of the window in kgCO2eq. The full
-record is appended to `emissions.csv` in your working directory, one row per
-window:
+`carbon_init()` registers the tracker for the session, so the other functions
+find it without being told. `tracker_stop()` returns one row for the window:
+`energy_consumed` is in kWh and `emissions_total` in kgCO2eq. The same row is
+appended to `emissions_r.csv` in your working directory, and `carbon_read()`
+returns that file as a tibble:
 
 ```{r}
-read.csv("emissions.csv") |>
-  as_tibble() |>
-  select(project_name, duration, energy_consumed, emissions, cpu_model)
-#> # A tibble: 1 × 5
-#>   project_name duration energy_consumed  emissions cpu_model
-#>   <chr>           <dbl>           <dbl>      <dbl> <chr>
-#> 1 austen           3.60       0.0000162 0.00000616 13th Gen Intel(R) Core(TM) i7-13700K
+carbon_read(".") |>
+  select(label, project_name, duration, energy_consumed, emissions_total, cpu_model)
+#> # A tibble: 1 × 6
+#>   label   project_name duration energy_consumed emissions_total cpu_model
+#>   <chr>   <chr>           <dbl>           <dbl>           <dbl> <chr>
+#> 1 session austen           3.72       0.0000124      0.00000472 13th Gen Intel(R) Core(TM) i7-13700K
 ```
 
-`measure_power_secs` is how often CodeCarbon samples power. The default of 10
-seconds suits long jobs; for code that finishes in a few seconds, set it to 1.
+CodeCarbon samples power once a second by default. For a job that runs for
+hours, a longer interval such as `measure_power_secs = 10` is enough.
 
 ## Track a function
 
-`carbon_track()` takes a function, its arguments and a tracker. It calls the
-function and returns one row holding the result and the measurement:
+`carbon_track()` takes a function and its arguments. It calls the function
+and returns one row holding the result and the measurement:
 
 ```{r}
-tracker <- carbon_init(project_name = "austen", measure_power_secs = 1)
+res <- carbon_track(count_words, data = books)
 
-res <- carbon_track(count_words, data = books, tracker = tracker)
-
-res |> select(fun, task_id, duration, energy_consumed, emissions_total)
+res |> select(label, task_id, duration, energy_consumed, emissions_total)
 #> # A tibble: 1 × 5
-#>   fun         task_id                              duration energy_consumed emissions_total
+#>   label       task_id                              duration energy_consumed emissions_total
 #>   <chr>       <chr>                                   <dbl>           <dbl>           <dbl>
-#> 1 count_words 9dec149d-9baa-431e-b84c-b7d0a3393524    0.437       0.0000198      0.00000754
+#> 1 count_words fc90e046-4da0-48f7-8667-db1f6e898a93    0.455       0.0000111      0.00000424
 ```
 
 `duration` is in seconds, `energy_consumed` in kWh and `emissions_total` in
@@ -131,9 +133,9 @@ res |>
     co2e_mg  = emissions_total * 1e6
   )
 #> # A tibble: 1 × 5
-#>    cpu_wh gpu_wh  ram_wh total_wh co2e_mg
-#>     <dbl>  <dbl>   <dbl>    <dbl>   <dbl>
-#> 1 0.00675 0.0106 0.00242   0.0198    7.54
+#>    cpu_wh  gpu_wh  ram_wh total_wh co2e_mg
+#>     <dbl>   <dbl>   <dbl>    <dbl>   <dbl>
+#> 1 0.00591 0.00271 0.00251   0.0111    4.24
 ```
 
 Every row also records the hardware and location the measurement came from,
@@ -148,7 +150,7 @@ res |>
 #> Columns: 6
 #> $ country_name       <chr> "Germany"
 #> $ cpu_model          <chr> "13th Gen Intel(R) Core(TM) i7-13700K"
-#> $ cpu_count          <int> 24
+#> $ cpu_count          <dbl> 24
 #> $ gpu_model          <chr> "1 x NVIDIA GeForce RTX 3090 Ti"
 #> $ ram_total_size     <dbl> 62.58013
 #> $ codecarbon_version <chr> "3.3.1"
@@ -179,7 +181,7 @@ quanteda_sentiment <- function(data) {
 ```
 
 `carbon_track_all()` takes a list of tasks, each a function and its
-arguments, and tracks them one after another on the same tracker:
+arguments, and tracks them one after another:
 
 ```{r}
 tasks <- list(
@@ -187,34 +189,34 @@ tasks <- list(
   list(fun = quanteda_sentiment, args = list(data = books))
 )
 
-runs <- carbon_track_all(tasks, tracker)
+runs <- carbon_track_all(tasks)
 
 runs |>
-  transmute(fun, duration,
+  transmute(label, duration,
             energy_wh = energy_consumed * 1000,
             co2e_mg   = emissions_total * 1e6)
 #> # A tibble: 2 × 4
-#>   fun                duration energy_wh co2e_mg
+#>   label              duration energy_wh co2e_mg
 #>   <chr>                 <dbl>     <dbl>   <dbl>
-#> 1 tidy_sentiment        0.443    0.0193    7.35
-#> 2 quanteda_sentiment    0.868    0.0420   16.0
+#> 1 tidy_sentiment        0.463    0.0116    4.42
+#> 2 quanteda_sentiment    0.970    0.0266   10.2
 ```
 
 The result is one row per task, in the order you gave them, with the
-function's name in `fun`. A single run of half a second is a noisy
+function's name in `label`. A single run of half a second is a noisy
 measurement, so repeat the tasks and summarise:
 
 ```{r}
-carbon_track_all(rep(tasks, 5), tracker) |>
-  group_by(fun) |>
+carbon_track_all(rep(tasks, 5)) |>
+  group_by(label) |>
   summarise(runs = n(),
             duration  = median(duration),
             energy_wh = median(energy_consumed) * 1000)
 #> # A tibble: 2 × 4
-#>   fun                 runs duration energy_wh
+#>   label               runs duration energy_wh
 #>   <chr>              <int>    <dbl>     <dbl>
-#> 1 quanteda_sentiment     5    0.867   0.0253
-#> 2 tidy_sentiment         5    0.329   0.00911
+#> 1 quanteda_sentiment     5    0.824    0.0229
+#> 2 tidy_sentiment         5    0.447    0.0119
 ```
 
 Before reading the tidytext version as the cheaper way to get the same answer,
@@ -246,7 +248,7 @@ once the two functions do the same job.
 ## Where next
 
 - `carbon_run()` tracks a whole pipeline as one expression, `carbon_step()`
-  each step of it, and `carbonbench()` benchmarks two expressions against
+  each step of it, and `carbon_bench()` benchmarks expressions against
   each other; see
   `vignette("pipelines-and-benchmarks")`.
 - For code that calls a hosted language model, the work happens at the

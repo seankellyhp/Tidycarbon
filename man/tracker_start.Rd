@@ -2,16 +2,19 @@
 % Please edit documentation in R/tidycarbon_core.R
 \name{tracker_start}
 \alias{tracker_start}
-\title{Start Carbon Tracker}
+\title{Start global emissions tracking}
 \usage{
-tracker_start(tracker)
+tracker_start(tracker = carbon_default_tracker())
 }
 \arguments{
-\item{tracker}{A CodeCarbon or remote tracker}
+\item{tracker}{A CodeCarbon tracker, or a remote tracker from
+[carbon_init_remote()]. Defaults to the session tracker registered by
+[carbon_init()].}
 }
 \value{
-Starts Global Emissions Tracker
+The tracker, invisibly.
 }
 \description{
-Start Carbon Tracker
+Starts the tracker's session-wide measurement window. Pair with
+[tracker_stop()], which logs the session as one uniform emissions row.
 }
