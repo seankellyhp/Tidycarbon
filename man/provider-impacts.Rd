@@ -24,6 +24,7 @@ Caveats, carried into every result:
   generation, not "the impact of the conversation".
 * **Figures are ranges** (`*_min` / `*_max`) whenever the provider does not
   publish its model's architecture. A published one gives `min == max`.
+  `*_mean` is the midpoint of the range, not a measured average.
 * **Latency can only lower the estimate.** An unknown latency (`NA`) leaves
   the modelled generation time uncapped.
 * **Models newer than the EcoLogits release** are computed as the nearest

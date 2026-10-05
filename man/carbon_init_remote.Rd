@@ -23,9 +23,9 @@ carbon_init_remote(
 }
 \value{
 A `remote_tracker`. Its windows return a 1-row tibble with
-  `timestamp`, `duration`, the lower and upper bounds
-  `emissions_total_min/max` (kgCO2eq), `energy_consumed_min/max` (kWh),
-  `water_consumed_min/max` (L), `n_calls`, `n_modelled`, `output_tokens`,
+  `timestamp`, `duration`, the lower bound, mean and upper bound
+  `emissions_total_min/mean/max` (kgCO2eq), `energy_consumed_min/mean/max`
+  (kWh), `water_consumed_min/mean/max` (L), `n_calls`, `n_modelled`, `output_tokens`,
   `engine`, `engine_version` and `calls`, a list-column holding the
   per-request table from the engine (see [carbon_provider()]).
 }

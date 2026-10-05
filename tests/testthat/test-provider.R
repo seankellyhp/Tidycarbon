@@ -44,6 +44,7 @@ test_that("carbon_provider estimates per request and names each resolution", {
   expect_true(all(is.na(x$energy_kwh_min[3:4])))
   expect_true(all(x$energy_kwh_min[1:2] > 0))
   expect_true(all(x$energy_kwh_max[1:2] >= x$energy_kwh_min[1:2]))
+  expect_equal(x$energy_kwh_mean, (x$energy_kwh_min + x$energy_kwh_max) / 2)
   expect_equal(x$grid_zone[1:2], rep(x$grid_zone[1], 2))
 })
 
@@ -73,6 +74,7 @@ test_that("carbon_provider_summary sums bound-wise and reports the unmodelled", 
   expect_equal(s$output_tokens_unmodelled, 50)
   expect_equal(s$energy_kwh_min, sum(x$energy_kwh_min[1:2]))
   expect_equal(s$gwp_kg_max, sum(x$gwp_kg_max[1:2]))
+  expect_equal(s$gwp_kg_mean, (s$gwp_kg_min + s$gwp_kg_max) / 2)
 
   m <- carbon_provider_summary(x, by = "model")
   expect_equal(nrow(m), 2)
@@ -190,6 +192,7 @@ test_that("a remote tracker drives carbon_track like a CodeCarbon one", {
   expect_equal(res$output_tokens, 400)
   expect_true(res$energy_consumed_min > 0)
   expect_true(res$emissions_total_max >= res$emissions_total_min)
+  expect_equal(res$energy_consumed_mean, (res$energy_consumed_min + res$energy_consumed_max) / 2)
   expect_equal(nrow(res$calls[[1]]), 2)
   expect_equal(res$energy_consumed_max, sum(res$calls[[1]]$energy_kwh_max))
 

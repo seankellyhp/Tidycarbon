@@ -140,7 +140,7 @@ How to read these numbers:
 
 - **They are estimates, not measurements.** EcoLogits models inference from each model's size and output length; nothing is measured at the provider.
 - **Only output tokens count.** Input and cached tokens do not enter the EcoLogits model, so a long prompt adds nothing to the estimate.
-- **Figures are ranges** (`*_min` / `*_max`) whenever a provider does not publish its model's size, which is the usual case for closed models.
+- **Figures are ranges** (`*_min` / `*_max`) whenever a provider does not publish its model's size, which is the usual case for closed models. `*_mean` is the midpoint of that range.
 - **Newer models are approximated.** A model EcoLogits does not know yet is computed as the nearest known model of the same family; the `resolution` column says so on every row.
 - **Never add them to CodeCarbon's figures.** One is your machine, measured; the other is the provider's datacenter, modelled. Each tracker returns its own table for that reason.
 

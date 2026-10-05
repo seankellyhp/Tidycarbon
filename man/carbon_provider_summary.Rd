@@ -14,10 +14,12 @@ how it was resolved.}
 }
 \value{
 A tibble with `calls`, `n_modelled`, `output_tokens`,
-  `output_tokens_unmodelled`, and summed `*_min` / `*_max` impact columns.
+  `output_tokens_unmodelled`, and summed `*_min` / `*_mean` / `*_max`
+  impact columns.
 }
 \description{
-Sums the per-request estimates separately at the lower and upper bound
-(deliberately conservative: it assumes every request sits at the same end
-of its range). Unmodelled requests are counted but not summed.
+Sums the per-request estimates separately at the lower bound, the mean and
+the upper bound (the bounds are deliberately conservative: they assume
+every request sits at the same end of its range). Unmodelled requests are
+counted but not summed.
 }

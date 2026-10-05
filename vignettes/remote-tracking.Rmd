@@ -138,7 +138,9 @@ res |>
 ```
 
 It is a range because OpenAI does not publish the size of its models, so
-EcoLogits brackets it.
+EcoLogits brackets it. Each impact also has a `*_mean` column
+(`energy_consumed_mean`, `emissions_total_mean`, `water_consumed_mean`): the
+midpoint of the range, for when you need a single figure.
 
 ## Look at the individual requests
 

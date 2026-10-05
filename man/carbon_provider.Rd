@@ -15,9 +15,11 @@ location as EcoLogits records it.}
 }
 \value{
 The calls tibble with `provider` normalised and the columns
-  `resolved_model`, `resolution`, `modelled`, `grid_zone`, and the lower and
-  upper bounds `energy_kwh_min/max`, `gwp_kg_min/max`, `water_l_min/max`,
-  `pe_mj_min/max`, `adpe_kgsb_min/max`. Unmodelled rows have `NA` impacts.
+  `resolved_model`, `resolution`, `modelled`, `grid_zone`, and the lower
+  bound, mean and upper bound `energy_kwh_min/mean/max`,
+  `gwp_kg_min/mean/max`, `water_l_min/mean/max`, `pe_mj_min/mean/max`,
+  `adpe_kgsb_min/mean/max`. The mean is the midpoint of the range.
+  Unmodelled rows have `NA` impacts.
 }
 \description{
 Runs one EcoLogits computation per request - never on token totals, since

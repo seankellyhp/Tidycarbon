@@ -19,6 +19,7 @@
 #'   generation, not "the impact of the conversation".
 #' * **Figures are ranges** (`*_min` / `*_max`) whenever the provider does not
 #'   publish its model's architecture. A published one gives `min == max`.
+#'   `*_mean` is the midpoint of the range, not a measured average.
 #' * **Latency can only lower the estimate.** An unknown latency (`NA`) leaves
 #'   the modelled generation time uncapped.
 #' * **Models newer than the EcoLogits release** are computed as the nearest
@@ -201,9 +202,11 @@ carbon_tokens <- function(calls) {
 #'   provider. Default `NULL` charges each provider to its own datacenter
 #'   location as EcoLogits records it.
 #' @return The calls tibble with `provider` normalised and the columns
-#'   `resolved_model`, `resolution`, `modelled`, `grid_zone`, and the lower and
-#'   upper bounds `energy_kwh_min/max`, `gwp_kg_min/max`, `water_l_min/max`,
-#'   `pe_mj_min/max`, `adpe_kgsb_min/max`. Unmodelled rows have `NA` impacts.
+#'   `resolved_model`, `resolution`, `modelled`, `grid_zone`, and the lower
+#'   bound, mean and upper bound `energy_kwh_min/mean/max`,
+#'   `gwp_kg_min/mean/max`, `water_l_min/mean/max`, `pe_mj_min/mean/max`,
+#'   `adpe_kgsb_min/mean/max`. The mean is the midpoint of the range.
+#'   Unmodelled rows have `NA` impacts.
 #' @export
 carbon_provider <- function(calls, zone = NULL) {
   n <- nrow(calls)
@@ -233,34 +236,36 @@ carbon_provider <- function(calls, zone = NULL) {
   calls$resolution     <- py_col(cols$resolution, character())
   calls$modelled       <- py_col(cols$modelled, logical())
   calls$grid_zone      <- dplyr::na_if(py_col(cols$grid_zone, character()), "")
-  calls$energy_kwh_min <- num("energy_min")
-  calls$energy_kwh_max <- num("energy_max")
-  calls$gwp_kg_min     <- num("gwp_min")
-  calls$gwp_kg_max     <- num("gwp_max")
-  calls$water_l_min    <- num("wcf_min")
-  calls$water_l_max    <- num("wcf_max")
-  calls$pe_mj_min      <- num("pe_min")
-  calls$pe_mj_max      <- num("pe_max")
-  calls$adpe_kgsb_min  <- num("adpe_min")
-  calls$adpe_kgsb_max  <- num("adpe_max")
+  # The mean is the midpoint of the range, so it equals both bounds when the
+  # provider publishes its architecture.
+  units <- c(energy = "energy_kwh", gwp = "gwp_kg", wcf = "water_l", pe = "pe_mj", adpe = "adpe_kgsb")
+  for (i in names(units)) {
+    lo <- num(paste0(i, "_min"))
+    hi <- num(paste0(i, "_max"))
+    calls[[paste0(units[[i]], "_min")]]  <- lo
+    calls[[paste0(units[[i]], "_mean")]] <- (lo + hi) / 2
+    calls[[paste0(units[[i]], "_max")]]  <- hi
+  }
   calls
 }
 
 #' Summarise provider-side impacts
 #'
-#' Sums the per-request estimates separately at the lower and upper bound
-#' (deliberately conservative: it assumes every request sits at the same end
-#' of its range). Unmodelled requests are counted but not summed.
+#' Sums the per-request estimates separately at the lower bound, the mean and
+#' the upper bound (the bounds are deliberately conservative: they assume
+#' every request sits at the same end of its range). Unmodelled requests are
+#' counted but not summed.
 #'
 #' @param x Output of [carbon_provider()].
 #' @param by `"total"` for one row, or `"model"` for one row per model and
 #'   how it was resolved.
 #' @return A tibble with `calls`, `n_modelled`, `output_tokens`,
-#'   `output_tokens_unmodelled`, and summed `*_min` / `*_max` impact columns.
+#'   `output_tokens_unmodelled`, and summed `*_min` / `*_mean` / `*_max`
+#'   impact columns.
 #' @export
 carbon_provider_summary <- function(x, by = c("total", "model")) {
   by <- match.arg(by)
-  impact_cols <- grep("_(min|max)$", names(x), value = TRUE)
+  impact_cols <- grep("_(min|mean|max)$", names(x), value = TRUE)
   groups <- if (by == "model") c("provider", "model", "resolved_model", "resolution") else character()
 
   x |>
@@ -299,9 +304,9 @@ chat_turn_count <- function(chat) {
 #'   `"ecologits"` ([EcoLogits](https://ecologits.ai)) is available for now.
 #' @param zone Optional electricity-mix zone, as in [carbon_provider()].
 #' @return A `remote_tracker`. Its windows return a 1-row tibble with
-#'   `timestamp`, `duration`, the lower and upper bounds
-#'   `emissions_total_min/max` (kgCO2eq), `energy_consumed_min/max` (kWh),
-#'   `water_consumed_min/max` (L), `n_calls`, `n_modelled`, `output_tokens`,
+#'   `timestamp`, `duration`, the lower bound, mean and upper bound
+#'   `emissions_total_min/mean/max` (kgCO2eq), `energy_consumed_min/mean/max`
+#'   (kWh), `water_consumed_min/mean/max` (L), `n_calls`, `n_modelled`, `output_tokens`,
 #'   `engine`, `engine_version` and `calls`, a list-column holding the
 #'   per-request table from the engine (see [carbon_provider()]).
 #' @export
@@ -369,10 +374,13 @@ remote_measure <- function(tracker, window) {
     timestamp           = as.character(Sys.time()),
     duration            = duration,
     emissions_total_min = bound(s$gwp_kg_min),
+    emissions_total_mean = bound(s$gwp_kg_mean),
     emissions_total_max = bound(s$gwp_kg_max),
     energy_consumed_min = bound(s$energy_kwh_min),
+    energy_consumed_mean = bound(s$energy_kwh_mean),
     energy_consumed_max = bound(s$energy_kwh_max),
     water_consumed_min  = bound(s$water_l_min),
+    water_consumed_mean = bound(s$water_l_mean),
     water_consumed_max  = bound(s$water_l_max),
     n_calls             = s$calls,
     n_modelled          = s$n_modelled,
