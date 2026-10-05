@@ -111,13 +111,13 @@ kgCO2eq. The function's own return value is in the `result` list-column:
 
 ```{r}
 res$result[[1]]
-#> # A tibble: 40,378 × 3
+#> # A tibble: 40,379 × 3
 #>    book              word      n
 #>    <fct>             <chr> <int>
 #>  1 Mansfield Park    the    6206
 #>  2 Mansfield Park    to     5475
 #>  3 Mansfield Park    and    5438
-#> # ℹ 40,375 more rows
+#> # ℹ 40,376 more rows
 ```
 
 The energy is also split by component. At this scale watt-hours and

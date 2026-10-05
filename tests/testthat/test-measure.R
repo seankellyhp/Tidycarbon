@@ -45,28 +45,49 @@ test_that("carbon_measure() builds a rich log from stop_task() and writes the ar
 })
 
 # 6. When stop_task() yields no data, the log falls back to a "none" row with NA
-#    emissions but still captures the run() value and wall time.
-test_that("carbon_measure() falls back to a 'none' row when stop_task() fails", {
+#    emissions, keeps the run() value and wall time, and says so with a warning.
+test_that("carbon_measure() warns and falls back to a 'none' row when stop_task() fails", {
   dir <- file.path(tempdir(), "measure-none")
-  bad <- list(
-    output_dir = dir,
-    start_task = function() NULL,
-    stop_task  = function() stop("py error")
-  )
-  m <- tidycarbon:::carbon_measure(
-    run = function() 1 + 1,
-    tracker = bad,
-    label = "add",
-    task_id = "id-1",
-    output_dir = dir,
-    output_file = "emissions.csv"
-  )
+  measure <- function(stop_task) {
+    tidycarbon:::carbon_measure(
+      run = function() 1 + 1,
+      tracker = list(output_dir = dir, start_task = function() NULL,
+                     stop_task = stop_task),
+      label = "add",
+      task_id = "id-1",
+      output_dir = dir,
+      output_file = "emissions.csv"
+    )
+  }
 
+  expect_warning(m <- measure(function() stop("py error")), "py error")
   expect_equal(m$result, 2)
   expect_equal(nrow(m$log), 1)
   expect_identical(m$log$output_source, "none")
   expect_true(is.na(m$log$emissions_total))
   expect_true(is.na(m$log$energy_consumed))
+
+  # CodeCarbon returns None, not an error, when it has no task to close.
+  expect_warning(m <- measure(function() NULL), "returned no data")
+  expect_identical(m$log$output_source, "none")
+})
+
+# 6b. A tracker that cannot open a task aborts before run() is called.
+test_that("carbon_measure() aborts when the task cannot be started", {
+  ran <- FALSE
+  bad <- list(
+    start_task = function() stop("no tracker"),
+    stop_task  = function() NULL
+  )
+  expect_error(
+    tidycarbon:::carbon_measure(
+      run = function() ran <<- TRUE,
+      tracker = bad, label = "add", task_id = "id-1",
+      output_dir = NULL, output_file = "emissions.csv"
+    ),
+    "no tracker"
+  )
+  expect_false(ran)
 })
 
 # 7. The CSV is not load-bearing: an unwritable destination is swallowed and the

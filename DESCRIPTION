@@ -29,12 +29,15 @@ Imports:
     rlang,
     dplyr
 Suggests:
+    bslib,
+    DT,
     ellmer,
     httr2,
     knitr,
     rmarkdown,
     S7,
     shiny,
+    shinycssloaders,
     testthat (>= 3.0.0),
     withr
 VignetteBuilder: knitr

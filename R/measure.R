@@ -8,6 +8,11 @@
 #' `stop_task()` in memory, and a failed (or skipped) CSV write never affects
 #' the returned result or log.
 #'
+#' A tracker that cannot open a task aborts before `run()` is called. If the
+#' measurement is lost after `run()` has finished, the result is kept and a
+#' warning is raised; the log row then has `NA` emissions and
+#' `output_source = "none"`.
+#'
 #' @param run A zero-argument function executing the measured code.
 #' A remote tracker from [carbon_init_remote()] goes through the same window,
 #' but its log is the provider-side estimate, appended to the tracker's own CSV
@@ -39,20 +44,32 @@ carbon_measure <- function(run, tracker, label, task_id, output_dir, output_file
   if (is.null(output_dir)) output_dir <- carbon_default_output_dir()
   if (is.null(output_file)) output_file <- carbon_default_output_file()
 
-  tryCatch(task_start(tracker), error = function(e) NULL)
+  # Nothing has run yet, so a tracker that cannot open a task aborts here.
+  task_start(tracker)
 
   t0 <- Sys.time()
-  error_obj <- NULL
   result <- tryCatch(
     run(),
-    error = function(e) { error_obj <<- e; NULL }
+    # Close the window so the tracker stays usable, then surface run()'s error.
+    error = function(e) { try(tracker$stop_task(), silent = TRUE); stop(e) }
   )
   wall_time_sec <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
 
   # stop_task() returns the rich (~33-field) emissions object in memory.
-  emissions <- tryCatch(tracker$stop_task(), error = function(e) NULL)
-
-  if (!is.null(error_obj)) stop(error_obj)
+  # CodeCarbon logs and returns None rather than raising when it has no task to
+  # close, so both outcomes are reported. run() has finished by now: its result
+  # is kept and the log row degrades to NA.
+  why <- c(i = "Is another task or CodeCarbon instance running on this tracker?")
+  emissions <- tryCatch(
+    tracker$stop_task(),
+    error = function(e) { why <<- c(x = conditionMessage(e)); NULL }
+  )
+  if (is.null(emissions)) {
+    rlang::warn(c(
+      paste0("CodeCarbon returned no data for \"", label, "\"; its log row is NA."),
+      why
+    ))
+  }
 
   log <- carbon_emissions_row(
     emissions,

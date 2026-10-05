@@ -282,10 +282,6 @@ longer and about 40% more energy than quanteda 3.
 autoplot(bench, metric = "energy_consumed")
 ```
 
-```{r, echo = FALSE, eval = TRUE, out.width = "80%"}
-knitr::include_graphics("carbonbench-energy.png")
-```
-
 The return value is a ggplot, so add scales and labels as usual:
 
 ```{r}

@@ -1,5 +1,5 @@
 ---
-title: "Using the `carbon_view()` Shiny App"
+title: "Using the carbon_view() Shiny App"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Using the carbon_view() Shiny App}
@@ -21,7 +21,7 @@ The app helps you inspect:
 
 - System and R session details
 - Machine configuration information detected through CodeCarbon
-- Carbon and energy metrics from your `emissions.csv` file
+- Carbon and energy metrics from your `emissions_r.csv` file
 - Carbon-equivalent context in a calculator panel
 
 The dashboard is especially useful after you have tracked one or more runs and want a quick visual readout of impact.
@@ -31,13 +31,14 @@ The dashboard is especially useful after you have tracked one or more runs and w
 You will get the best results if the following are ready:
 
 1. `tidycarbon` is installed.
+1. The packages the app uses are installed: `shiny`, `bslib`, `DT` and `shinycssloaders`.
 1. Python and the `codecarbon` module are available through `reticulate`.
-1. At least one `emissions.csv` file exists in your project (the app looks for it recursively).
+1. At least one `emissions_r.csv` file exists in your project (the app looks for it recursively, and also accepts a CodeCarbon `emissions.csv`).
 
-If no `emissions.csv` is found, the app will show:
-`"emissions.csv not found anywhere in the project folder."`
+If neither is found, the app will show:
+`"emissions_r.csv (or emissions.csv) not found anywhere in the project folder."`
 
-## Create `emissions.csv` (if needed)
+## Create `emissions_r.csv` (if needed)
 
 If you have not produced tracking output yet, run a quick tracked session:
 
@@ -54,7 +55,7 @@ x <- sum(1:1000000)
 tracker_stop(tracker)
 ```
 
-After this, an `emissions.csv` file should be available for the dashboard.
+After this, an `emissions_r.csv` file is available for the dashboard.
 
 ## Launch the App
 
@@ -96,7 +97,7 @@ This tab displays your computed emissions value and embeds an external calculato
 
 ## Common Issues
 
-If the app cannot find required columns in your `emissions.csv`, it will report messages such as:
+If the app cannot find required columns in the file it reads, it will report messages such as:
 
 - `"Column 'emissions' not found in emissions.csv."`
 - `"Column 'energy_consumed' not found in emissions.csv."`
