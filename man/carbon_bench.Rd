@@ -9,7 +9,7 @@ carbon_bench(
   times = 10,
   tracker = NULL,
   project_name = "carbonbench",
-  measure_power_secs = 0.01,
+  measure_power_secs = 1,
   warmup = TRUE
 )
 }
@@ -28,8 +28,10 @@ created and stopped internally (the session default tracker registered by
 
 \item{project_name}{Project name used when creating an internal tracker.}
 
-\item{measure_power_secs}{Sampling interval (seconds) for the internal
-tracker.}
+\item{measure_power_secs}{Sampling interval (seconds) of the internal
+tracker between runs. It does not change the measurements: CodeCarbon
+reads each run at its start and its end. Intervals far below a second
+only add CPU load of their own.}
 
 \item{warmup}{Logical; if `TRUE`, run each expression once before timing.}
 }

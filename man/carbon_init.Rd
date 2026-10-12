@@ -10,22 +10,33 @@ carbon_init(
   tracking_mode = "machine",
   output_dir = ".",
   output_file = "emissions_r.csv",
-  offline = TRUE
+  offline = FALSE,
+  country_iso_code = NULL
 )
 }
 \arguments{
 \item{project_name}{Name of the project.}
 
-\item{measure_power_secs}{Seconds between power measurements.}
+\item{measure_power_secs}{Seconds between power measurements during a
+[tracker_start()] / [tracker_stop()] session. [carbon_step()],
+[carbon_run()] and [carbon_track()] are read at their start and end
+instead. Sampling costs CPU itself, so keep it near a second or above.}
 
 \item{tracking_mode}{Tracking mode (default "machine").}
 
 \item{output_dir}{Directory where `output_file` will be written
-(default "." --- the project root).}
+(default "." --- the project root). Created if it does not exist.}
 
 \item{output_file}{Output CSV name (default "emissions_r.csv").}
 
-\item{offline}{Logical; only applied if supported by installed CodeCarbon.}
+\item{offline}{Logical. By default (`FALSE`) CodeCarbon finds the country
+and region of this machine, which set the carbon intensity of its
+electricity, by sending one request to a geolocation service
+(<https://get.geojs.io>) that sees your IP address. `TRUE` makes no such
+request and uses `country_iso_code` instead.}
+
+\item{country_iso_code}{3-letter ISO code of the country the machine is in
+(e.g. `"DEU"`). Required when `offline = TRUE`, unused otherwise.}
 }
 \value{
 A codecarbon EmissionsTracker object, registered as the session

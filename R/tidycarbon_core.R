@@ -11,12 +11,21 @@
 #' tidycarbon's schema.
 #'
 #' @param project_name Name of the project.
-#' @param measure_power_secs Seconds between power measurements.
+#' @param measure_power_secs Seconds between power measurements during a
+#'   [tracker_start()] / [tracker_stop()] session. [carbon_step()],
+#'   [carbon_run()] and [carbon_track()] are read at their start and end
+#'   instead. Sampling costs CPU itself, so keep it near a second or above.
 #' @param tracking_mode Tracking mode (default "machine").
 #' @param output_dir Directory where `output_file` will be written
-#'   (default "." --- the project root).
+#'   (default "." --- the project root). Created if it does not exist.
 #' @param output_file Output CSV name (default "emissions_r.csv").
-#' @param offline Logical; only applied if supported by installed CodeCarbon.
+#' @param offline Logical. By default (`FALSE`) CodeCarbon finds the country
+#'   and region of this machine, which set the carbon intensity of its
+#'   electricity, by sending one request to a geolocation service
+#'   (<https://get.geojs.io>) that sees your IP address. `TRUE` makes no such
+#'   request and uses `country_iso_code` instead.
+#' @param country_iso_code 3-letter ISO code of the country the machine is in
+#'   (e.g. `"DEU"`). Required when `offline = TRUE`, unused otherwise.
 #' @return A codecarbon EmissionsTracker object, registered as the session
 #'   default.
 #' @export
@@ -25,10 +34,11 @@ carbon_init <- function(project_name = "rtest",
                         tracking_mode = "machine",
                         output_dir = ".",
                         output_file = "emissions_r.csv",
-                        offline = TRUE) {
+                        offline = FALSE,
+                        country_iso_code = NULL) {
   tracker <- carbon_new_tracker(project_name, measure_power_secs,
                                 tracking_mode, output_dir, output_file,
-                                offline)
+                                offline, country_iso_code)
   .the$tracker     <- tracker
   .the$output_dir  <- output_dir
   .the$output_file <- output_file
@@ -39,7 +49,8 @@ carbon_init <- function(project_name = "rtest",
                             tracking_mode = tracking_mode,
                             output_dir = output_dir,
                             output_file = output_file,
-                            offline = offline)
+                            offline = offline,
+                            country_iso_code = country_iso_code)
   tracker
 }
 

@@ -10,7 +10,8 @@ carbon_new_tracker(
   tracking_mode,
   output_dir,
   output_file,
-  offline
+  offline = FALSE,
+  country_iso_code = NULL
 )
 }
 \arguments{
@@ -20,19 +21,25 @@ carbon_new_tracker(
 
 \item{tracking_mode}{CodeCarbon tracking mode (e.g., "machine").}
 
-\item{output_dir}{Directory where `output_file` will be written.}
+\item{output_dir}{Directory where `output_file` will be written. Created if
+it does not exist.}
 
 \item{output_file}{Output CSV name (default "emissions_r.csv").}
 
-\item{offline}{Logical; only applied if supported by installed CodeCarbon.}
+\item{offline}{Logical; `TRUE` builds an `OfflineEmissionsTracker`, which
+makes no network request and needs `country_iso_code`.}
+
+\item{country_iso_code}{3-letter ISO country code, required when
+`offline = TRUE`.}
 }
 \value{
-A Python `codecarbon.emissions_tracker.EmissionsTracker` object.
+A Python `codecarbon.emissions_tracker.EmissionsTracker` (or
+  `OfflineEmissionsTracker`) object.
 }
 \description{
-Creates a CodeCarbon `EmissionsTracker` via reticulate and returns the Python
-tracker object without registering it as the session default. Adds a version
-guard for the `offline` parameter (only passed if supported by the installed
-CodeCarbon). Used internally by [carbon_init()] and [carbon_bench()].
+Creates a CodeCarbon `EmissionsTracker` (or, with `offline = TRUE`, an
+`OfflineEmissionsTracker`) via reticulate and returns the Python tracker
+object without registering it as the session default. Used internally by
+[carbon_init()] and [carbon_bench()].
 }
 \keyword{internal}

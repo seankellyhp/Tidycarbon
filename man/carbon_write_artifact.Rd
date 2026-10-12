@@ -15,8 +15,9 @@ carbon_write_artifact(log, output_dir, output_file)
 Invisibly `NULL`.
 }
 \description{
-Appends `log` to the file when its header matches; writes a fresh file when
-the file is absent or carries a different (e.g. legacy) schema. Any failure
-is swallowed so measurement is unaffected.
+Appends `log` to the file when its header matches, and writes a fresh file
+when it is absent or empty. A file with other columns is left untouched and
+the row is not written. That, and any failed write, raises a warning (once
+per file and session) and never an error, so measurement is unaffected.
 }
 \keyword{internal}

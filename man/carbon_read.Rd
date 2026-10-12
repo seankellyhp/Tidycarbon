@@ -4,12 +4,15 @@
 \alias{carbon_read}
 \title{Read the tidycarbon emissions CSV}
 \usage{
-carbon_read(output_dir, output_file = "emissions_r.csv")
+carbon_read(output_dir = NULL, output_file = NULL)
 }
 \arguments{
-\item{output_dir}{Directory containing the emissions CSV.}
+\item{output_dir}{Directory containing the emissions CSV. Defaults to the
+one registered by [carbon_init()], else the working directory.}
 
-\item{output_file}{CSV filename (default "emissions_r.csv").}
+\item{output_file}{CSV filename. Defaults to the one registered by
+[carbon_init()], else "emissions_r.csv". A remote tracker logs to its own
+file ("emissions_remote.csv" by default, see [carbon_init_remote()]).}
 }
 \value{
 A tibble of emissions records (empty tibble if file missing).

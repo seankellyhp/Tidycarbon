@@ -36,8 +36,7 @@ dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 carbon_init(
   project_name = "package_test",
   measure_power_secs = 1,
-  output_dir = out_dir,
-  offline = TRUE  # will be applied only if your CodeCarbon supports it
+  output_dir = out_dir
 )
 
 # ---- Per-step tracking (pipe style) ----

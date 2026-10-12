@@ -15,14 +15,16 @@
 #'   created and stopped internally (the session default tracker registered by
 #'   [carbon_init()] is left untouched).
 #' @param project_name Project name used when creating an internal tracker.
-#' @param measure_power_secs Sampling interval (seconds) for the internal
-#'   tracker.
+#' @param measure_power_secs Sampling interval (seconds) of the internal
+#'   tracker between runs. It does not change the measurements: CodeCarbon
+#'   reads each run at its start and its end. Intervals far below a second
+#'   only add CPU load of their own.
 #' @param warmup Logical; if `TRUE`, run each expression once before timing.
 #' @return A tibble of class `carbonbench` with one row per run.
 #' @export
 carbon_bench <- function(..., times = 10, tracker = NULL,
                         project_name = "carbonbench",
-                        measure_power_secs = .01,
+                        measure_power_secs = 1,
                         warmup = TRUE) {
   exprs <- as.list(substitute(list(...)))[-1]
   env <- parent.frame()
@@ -41,8 +43,7 @@ carbon_bench <- function(..., times = 10, tracker = NULL,
                                   measure_power_secs = measure_power_secs,
                                   tracking_mode = "machine",
                                   output_dir = tempdir(),
-                                  output_file = "emissions_r.csv",
-                                  offline = TRUE)
+                                  output_file = "emissions_r.csv")
     # Raw start/stop, not tracker_start()/tracker_stop(): the throwaway
     # benchmark session must not log a "session" row to the artifact.
     tracker$start()

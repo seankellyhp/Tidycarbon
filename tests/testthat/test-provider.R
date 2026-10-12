@@ -261,3 +261,17 @@ test_that("carbon_init_remote rejects anything that is not a chat", {
   expect_error(carbon_init_remote("claude"), "ellmer Chat")
   expect_error(carbon_init_remote(NULL, engine = "other"), "should be")
 })
+
+test_that("a remote tracker closes its task window when the tracked code fails", {
+  skip_if_not_installed("ellmer")
+  skip_if_no_ecologits()
+  f <- fake_chat()
+  tracker <- carbon_init_remote(f$chat, output_dir = NULL)
+
+  expect_error(carbon_run(stop("boom"), tracker = tracker), "boom")
+  expect_null(tracker$marks[["task"]])
+
+  # Still usable, and the next window starts from now.
+  res <- carbon_run(f$ask(10), tracker = tracker)
+  expect_equal(res$log$n_calls, 1)
+})

@@ -43,7 +43,8 @@ carbon_collect <- function(x) {
 #'   value registered by [carbon_init()] (default "emissions_r.csv").
 #'
 #' @return The transformed object with a `carbon_log` attribute (a rich
-#'   one-row tibble of in-memory emissions data). With a remote tracker each
+#'   one-row tibble of in-memory emissions data). A result that cannot carry
+#'   an attribute, such as `NULL`, is returned without one, with a warning. With a remote tracker each
 #'   row is the provider-side estimate described in [carbon_init_remote()].
 #' @examples
 #' \dontrun{
@@ -97,8 +98,19 @@ carbon_step <- function(.data,
   m <- carbon_measure(run, tracker, label, task_id, output_dir, output_file)
 
   out <- m$result
-  prev <- attr(.data, "carbon_log")
-  attr(out, "carbon_log") <- dplyr::bind_rows(prev, m$log)
+  log <- dplyr::bind_rows(attr(.data, "carbon_log"), m$log)
+  # Some results (NULL, a symbol) cannot carry an attribute. The step has run
+  # and is in the CSV artifact, so return its result rather than fail.
+  tryCatch(
+    attr(out, "carbon_log") <- log,
+    error = function(e) {
+      rlang::warn(c(
+        paste0("The result of \"", label, "\" cannot carry a step log, so ",
+               "`carbon_collect()` will find none on it."),
+        i = "The step was measured: see the CSV artifact, or use `carbon_run()`."
+      ))
+    }
+  )
 
   out
 }

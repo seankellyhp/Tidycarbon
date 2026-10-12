@@ -432,7 +432,11 @@ remote_write_artifact <- function(tracker, log, output_dir, output_file) {
 remote_measure_task <- function(run, tracker, label, task_id,
                                 output_dir = NULL, output_file = NULL) {
   tracker$start_task()
-  result <- run()
+  result <- tryCatch(
+    run(),
+    # Close the window so the tracker stays usable, then surface run()'s error.
+    error = function(e) { tracker$marks[["task"]] <- NULL; stop(e) }
+  )
   log <- remote_log(tracker, tracker$stop_task(), task_id, label)
   remote_write_artifact(tracker, log, output_dir, output_file)
   list(result = result, log = log)

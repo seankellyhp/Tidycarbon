@@ -35,5 +35,10 @@ emissions object, and writes that row to a CSV as a best-effort artifact.
 The CSV is **not** load-bearing: all emissions data comes from
 `stop_task()` in memory, and a failed (or skipped) CSV write never affects
 the returned result or log.
+
+A tracker that cannot open a task aborts before `run()` is called. If the
+measurement is lost after `run()` has finished, the result is kept and a
+warning is raised; the log row then has `NA` emissions and
+`output_source = "none"`.
 }
 \keyword{internal}

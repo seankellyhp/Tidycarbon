@@ -42,7 +42,8 @@ value registered by [carbon_init()] (default "emissions_r.csv").}
 }
 \value{
 The transformed object with a `carbon_log` attribute (a rich
-  one-row tibble of in-memory emissions data). With a remote tracker each
+  one-row tibble of in-memory emissions data). A result that cannot carry
+  an attribute, such as `NULL`, is returned without one, with a warning. With a remote tracker each
   row is the provider-side estimate described in [carbon_init_remote()].
 }
 \description{

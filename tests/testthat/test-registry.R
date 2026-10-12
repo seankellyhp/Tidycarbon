@@ -30,3 +30,16 @@ test_that("carbon_default_* read the registry and abort when no tracker is set",
   expect_identical(tidycarbon:::carbon_default_output_file(), "mylog.csv")
   expect_identical(tidycarbon:::carbon_default_tracker(), the$tracker)
 })
+
+test_that("carbon_init() asks for a country before going offline", {
+  # Both abort before CodeCarbon is loaded.
+  expect_error(carbon_init(offline = TRUE), "country_iso_code")
+  expect_error(carbon_init(offline = TRUE, country_iso_code = "DE"), "3-letter")
+  expect_error(carbon_init(country_iso_code = "DEU"), "only used with")
+})
+
+test_that("carbon_init() reports an output_dir it cannot create", {
+  # Aborts before CodeCarbon is loaded.
+  expect_error(carbon_init(output_dir = "/proc/nonexistent/cannot/write"),
+               "Cannot create")
+})

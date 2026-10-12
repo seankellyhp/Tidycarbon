@@ -20,8 +20,7 @@ dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 carbon_init(
   project_name = "topicmodels_guardian",
   measure_power_secs = 1,
-  output_dir = out_dir,
-  offline = TRUE
+  output_dir = out_dir
 )
 
 k_topics <- 20

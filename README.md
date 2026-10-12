@@ -158,16 +158,6 @@ Here is an example of one Claude Code session (34 requests, 2.6M tokens sent, 41
 | CO2e | 48.4 g | 94.1 g |
 | Water | 0.39 L | 0.96 L |
 
-How to read these numbers:
-
-- **They are estimates, not measurements.** EcoLogits models inference from each model's size and output length; nothing is measured at the provider.
-- **Only output tokens count.** Input and cached tokens do not enter the EcoLogits model, so a long prompt adds nothing to the estimate.
-- **Figures are ranges** (`*_min` / `*_max`) whenever a provider does not publish its model's size, which is the usual case for closed models. `*_mean` is the midpoint of that range.
-- **Only models EcoLogits knows are estimated.** The model name is looked up in the EcoLogits registry as is. One it has not registered, often a model newer than the installed release, is left out (`modelled = FALSE`, with the EcoLogits error code in `error`) rather than approximated.
-- **Never add them to CodeCarbon's figures.** One is your machine, measured; the other is the provider's datacenter, modelled. Each tracker returns its own table for that reason.
-
-EcoLogits is installed automatically through reticulate the first time a provider function is used.
-
 ## Key Functions
 
 - `carbon_init()`: Create a CodeCarbon tracker (your machine; registered as the session default).
@@ -202,7 +192,7 @@ See `vignettes` for more examples (in development).
 
 ## Citation
 
-Palicki, S., & Bravo, I. (2025). tidycarbon: Tidy R Wrapper for the CodeCarbon Emissions Tracker. https://github.com/seankellyhp/Tidycarbon
+Hamilton-Palicki, S., & Bravo, I. (2025). tidycarbon: Tidy R Wrapper for the CodeCarbon Emissions Tracker. https://github.com/seankellyhp/Tidycarbon
 
 <!-- ## Contributing
 

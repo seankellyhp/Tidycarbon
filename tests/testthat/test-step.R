@@ -40,3 +40,14 @@ test_that("carbon_step() propagates step errors and warns about ignored ... in c
     "ignored in call form"
   )
 })
+
+test_that("carbon_step() returns a result that cannot carry the log", {
+  dir <- file.path(tempdir(), "step-null")
+  unlink(dir, recursive = TRUE)
+  ft <- fake_tracker(output_dir = dir)
+
+  expect_warning(out <- carbon_step(1:3, function(x) NULL, tracker = ft),
+                 "cannot carry a step log")
+  expect_null(out)
+  expect_equal(nrow(carbon_read(dir, "emissions_r.csv")), 1)
+})

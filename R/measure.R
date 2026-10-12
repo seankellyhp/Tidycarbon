@@ -79,7 +79,7 @@ carbon_measure <- function(run, tracker, label, task_id, output_dir, output_file
     output_source = output_file
   )
 
-  # Best-effort CSV artifact. Never load-bearing: failures are swallowed.
+  # Best-effort CSV artifact. Never load-bearing: a failure only warns.
   if (!is.null(output_dir)) {
     carbon_write_artifact(log, output_dir, output_file)
   }
@@ -158,31 +158,45 @@ carbon_emissions_row <- function(emissions, task_id, label, wall_time_sec,
 
 #' Append a log row to the CSV artifact (best-effort, never load-bearing)
 #'
-#' Appends `log` to the file when its header matches; writes a fresh file when
-#' the file is absent or carries a different (e.g. legacy) schema. Any failure
-#' is swallowed so measurement is unaffected.
+#' Appends `log` to the file when its header matches, and writes a fresh file
+#' when it is absent or empty. A file with other columns is left untouched and
+#' the row is not written. That, and any failed write, raises a warning (once
+#' per file and session) and never an error, so measurement is unaffected.
 #'
 #' @param log A one-row tibble from [carbon_emissions_row()].
 #' @param output_dir,output_file CSV destination.
 #' @return Invisibly `NULL`.
 #' @keywords internal
 carbon_write_artifact <- function(log, output_dir, output_file) {
+  path <- file.path(output_dir, output_file)
+  not_written <- function(why) {
+    rlang::warn(
+      c(paste0("Emissions were not logged to \"", path, "\"."), why,
+        i = "The measurement itself is unaffected and is in the returned log."),
+      .frequency = "once",
+      .frequency_id = paste0("tidycarbon_artifact_", path)
+    )
+  }
+
   tryCatch({
     if (!dir.exists(output_dir)) {
       dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
     }
-    path <- file.path(output_dir, output_file)
-    append <- FALSE
-    if (file.exists(path)) {
-      hdr <- tryCatch(
-        names(readr::read_csv(path, n_max = 0, show_col_types = FALSE)),
-        error = function(e) NULL
-      )
-      # Append only when the existing schema matches; otherwise overwrite so a
-      # stale/legacy file never corrupts the artifact via misaligned columns.
-      append <- identical(hdr, names(log))
+    append <- file.exists(path) && file.size(path) > 0
+    if (append) {
+      hdr <- names(readr::read_csv(path, n_max = 0, show_col_types = FALSE,
+                                   name_repair = "minimal"))
+      # Never overwrite or append to a file with other columns: it is the
+      # user's data (a CodeCarbon CSV, an older tidycarbon log, a remote log).
+      if (!identical(hdr, names(log))) {
+        not_written(c(
+          x = "The file exists with different columns, and was left untouched.",
+          i = "Move it, or set another `output_file` / `output_dir`."
+        ))
+        return(invisible(NULL))
+      }
     }
     readr::write_csv(log, path, append = append)
-  }, error = function(e) NULL)
+  }, error = function(e) not_written(c(x = conditionMessage(e))))
   invisible(NULL)
 }

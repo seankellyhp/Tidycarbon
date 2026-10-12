@@ -90,17 +90,20 @@ test_that("carbon_measure() aborts when the task cannot be started", {
   expect_false(ran)
 })
 
-# 7. The CSV is not load-bearing: an unwritable destination is swallowed and the
+# 7. The CSV is not load-bearing: an unwritable destination only warns, and the
 #    measurement (result + in-memory log) is returned intact.
 test_that("carbon_measure() succeeds even when the CSV artifact cannot be written", {
   bad_dir <- "/proc/nonexistent/cannot/write"
-  m <- tidycarbon:::carbon_measure(
-    run = function() 42,
-    tracker = fake_tracker(output_dir = bad_dir, emissions = 0.0001),
-    label = "x",
-    task_id = "id-3",
-    output_dir = bad_dir,
-    output_file = "emissions.csv"
+  expect_warning(
+    m <- tidycarbon:::carbon_measure(
+      run = function() 42,
+      tracker = fake_tracker(output_dir = bad_dir, emissions = 0.0001),
+      label = "x",
+      task_id = "id-3",
+      output_dir = bad_dir,
+      output_file = "emissions.csv"
+    ),
+    "were not logged"
   )
 
   expect_equal(m$result, 42)
@@ -120,4 +123,41 @@ test_that("carbon_measure() appends rows to the CSV artifact across calls", {
   art <- carbon_read(dir, "emissions.csv")
   expect_equal(nrow(art), 2)
   expect_identical(art$label, c("a", "b"))
+})
+
+# 9. A file with other columns is the user's data: it is never overwritten.
+test_that("carbon_measure() leaves an artifact with other columns untouched", {
+  dir <- file.path(tempdir(), "measure-foreign")
+  unlink(dir, recursive = TRUE)
+  dir.create(dir)
+  path <- file.path(dir, "emissions.csv")
+  writeLines(c("a,b", "1,2", "3,4"), path)
+  ft <- fake_tracker(output_dir = dir, emissions = 0.3)
+
+  expect_warning(
+    m <- tidycarbon:::carbon_measure(function() 1, ft, "a", "id-a", dir, "emissions.csv"),
+    "different columns"
+  )
+  expect_equal(m$log$emissions_total, 0.3)
+  expect_identical(readLines(path), c("a,b", "1,2", "3,4"))
+
+  # Warned once per file, and still untouched on the next measurement.
+  expect_no_warning(
+    tidycarbon:::carbon_measure(function() 2, ft, "b", "id-b", dir, "emissions.csv")
+  )
+  expect_identical(readLines(path), c("a,b", "1,2", "3,4"))
+})
+
+# 10. An empty file has no columns to disagree with, so it is started afresh.
+test_that("carbon_measure() writes a header into an empty artifact", {
+  dir <- file.path(tempdir(), "measure-empty")
+  unlink(dir, recursive = TRUE)
+  dir.create(dir)
+  file.create(file.path(dir, "emissions.csv"))
+  ft <- fake_tracker(output_dir = dir)
+
+  tidycarbon:::carbon_measure(function() 1, ft, "a", "id-a", dir, "emissions.csv")
+  tidycarbon:::carbon_measure(function() 2, ft, "b", "id-b", dir, "emissions.csv")
+
+  expect_identical(carbon_read(dir, "emissions.csv")$label, c("a", "b"))
 })

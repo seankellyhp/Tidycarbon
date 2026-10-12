@@ -8,3 +8,4 @@
 ^\.claude$
 ^\.env$
 ^paper$
+^tutorial$
