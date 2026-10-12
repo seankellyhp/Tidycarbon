@@ -7,7 +7,7 @@
 #' @return Runs the Shiny app (called for its side effect).
 #' @export
 carbon_view <- function(use_browser = TRUE) {
-  rlang::check_installed(c("shiny", "bslib", "DT", "shinycssloaders"),
+  rlang::check_installed(c("shiny", "bslib", "DT", "shinycssloaders", "plotly", "tidyr"),
                          "to run the carbon_view() app.")
   appDir <- system.file("app", package = "tidycarbon")
   if (appDir == "") {

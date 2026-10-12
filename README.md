@@ -27,7 +27,13 @@ Install the development version from GitHub:
 remotes::install_github("seankellyhp/Tidycarbon")
 ```
 
-`tidycarbon` relies on [reticulate](https://rstudio.github.io/reticulate/) to interface with CodeCarbon. Installation via reticulate relies on the Python uv package, and should happen automatically without any additional manual effort from you (recommended). If you prefer a manual installation (using conda or venv), refer to the reticulate docs. 
+This installs the core package, which needs R >= 4.1. The `carbon_view()` dashboard and hosted-LLM tracking use optional packages (shiny, plotly, ellmer, ...); to get those too, install with:
+
+```r
+remotes::install_github("seankellyhp/Tidycarbon", dependencies = TRUE)
+```
+
+You do not need to install Python yourself. `tidycarbon` relies on [reticulate](https://rstudio.github.io/reticulate/) to interface with CodeCarbon, which is downloaded the first time you call `carbon_init()` (this needs an internet connection and can take a minute). Installation via reticulate relies on the Python uv package, and should happen automatically without any additional manual effort from you (recommended). If you prefer a manual installation (using conda or venv), refer to the reticulate docs. 
 
 ## Quickstart
 
@@ -189,6 +195,15 @@ See `vignettes` for more examples (in development).
 - **Hosted LLMs**: Token accounting and EcoLogits estimates of provider-side inference, kept separate from local measurements.
 - **Modern reticulate**: Auto-imports `codecarbon` (and `ecologits` when needed).
 - **Roadmap**: vignettes, website.
+
+## License
+
+`tidycarbon` is released under the [MIT License](LICENSE.md).
+
+It does not bundle its Python dependencies; they are downloaded at first use and remain under their own licenses:
+
+- [CodeCarbon](https://github.com/mlco2/codecarbon): MIT License.
+- [EcoLogits](https://github.com/genai-impact/ecologits): Mozilla Public License 2.0 (MPL-2.0).
 
 ## Citation
 

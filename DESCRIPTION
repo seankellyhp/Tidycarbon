@@ -16,9 +16,12 @@ Authors@R: c(
       role = c("aut")
     ))
 Description: With three lines of code, track and compare the energy, CPU and GPU use to estimate sustainability values including carbon emissions and water use of R functions, scripts, and pipelines.
-License: GPL (>= 3)
+License: MIT + file LICENSE
+URL: https://github.com/seankellyhp/Tidycarbon, https://seankellyhp.github.io/Tidycarbon/
+BugReports: https://github.com/seankellyhp/Tidycarbon/issues
 Encoding: UTF-8
-LazyData: true
+Depends:
+    R (>= 4.1.0)
 Imports:
     reticulate (>= 1.44.0),
     tibble,
@@ -34,11 +37,13 @@ Suggests:
     ellmer,
     httr2,
     knitr,
+    plotly,
     rmarkdown,
     S7,
     shiny,
     shinycssloaders,
     testthat (>= 3.0.0),
+    tidyr,
     withr
 VignetteBuilder: knitr
 Config/testthat/edition: 3
