@@ -198,7 +198,7 @@ See `vignettes` for more examples (in development).
 
 ## License
 
-`tidycarbon` is released under the [MIT License](LICENSE.md).
+`tidycarbon` is released under the [MIT License](LICENSE).
 
 It does not bundle its Python dependencies; they are downloaded at first use and remain under their own licenses:
 
